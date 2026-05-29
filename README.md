@@ -79,7 +79,7 @@ cv-review init
 
 **注意**：`init` 不会覆盖你已存在的配置文件，放心执行。
 
-### 3.3 执行盲审
+### 3.3 执行盲审（独立 CLI）
 
 ```bash
 # 轻量盲审（默认，只调用 reviewer，成本最低）
@@ -92,7 +92,9 @@ cv-review --file docs/design.md --instruction "重点审查第三章并发模型
 cv-review --file docs/design.md --mode debate --rounds 2
 ```
 
-### 3.4 在 Claude Code CLI 中使用 `/cv`
+> **适用场景**：任何终端（bash / zsh / PowerShell）均可直接使用，**不依赖 Claude Code**。输出评审意见到 stdout 后即结束，适合 CI 流水线、脚本自动化或快速独立检查。
+
+### 3.4 在 Claude Code CLI 中使用 `/cv`（交互式闭环）
 
 在任意工程目录打开 Claude Code，输入：
 
@@ -100,6 +102,8 @@ cv-review --file docs/design.md --mode debate --rounds 2
 /cv docs/design.md
 /cv docs/design.md 重点审查第三章并发模型
 ```
+
+> **与 3.3 的区别**：`/cv` 是 Claude Code 的前端集成，底层仍调用同一个 `cv-review`，但会额外提供**"评审 → 询问是否修改 → 直接 Edit 改文件"**的交互闭环。如果你只想看意见，用 3.3；如果你想让 Claude 根据意见自动改文档，用 `/cv`。
 
 底层会自动调用独立 API 执行盲审，评审意见在当前 CLI 会话中完整展示，随后询问是否根据意见修改文档。
 
@@ -209,14 +213,12 @@ cv-review init
 将 `cv.md` 复制到用户级命令目录：
 
 ```bash
-# Windows
-mkdir %USERPROFILE%\.claude\commands
-copy docs\cv.md %USERPROFILE%\.claude\commands\
-
-# macOS / Linux
+# 所有平台通用（Windows Git Bash / WSL / macOS / Linux）
 mkdir -p ~/.claude/commands
 cp docs/cv.md ~/.claude/commands/
 ```
+
+> **Windows CMD 用户**：若使用原生 CMD，请将 `~` 替换为 `%USERPROFILE%`，将 `cp` 替换为 `copy`。
 
 重启 Claude Code CLI 后，输入 `/cv` 即可使用。
 
