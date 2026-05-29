@@ -1,4 +1,4 @@
-# cv-review 优化建议跟踪
+﻿# cv-review 优化建议跟踪
 
 > **来源**：DeepSeek 独立 API 盲审生成  
 > **评审对象**：README.md + 工程实现（v0.2.0）  
@@ -14,19 +14,19 @@
 
 ## P0 — 必须修复
 
-- [ ] **6. API 调用无重试/超时**  
+- [x] **6. API 调用无重试/超时**  
   `api.py:ask_agent()` 裸 try-except，网络抖动或 429 直接导致崩溃。  
   **修复**：引入 `tenacity` 实现指数退避重试（3 次），超时 60s。
 
-- [ ] **7. 配置文件无字段验证**  
+- [x] **7. 配置文件无字段验证**  
   `load_api_settings()` 返回 raw dict，不校验 `channels` / `runtime_routing` 结构。  
   **修复**：返回前检查必填字段存在且类型正确。
 
-- [ ] **5. 空文件/非 Markdown 未检查**  
+- [x] **5. 空文件/非 Markdown 未检查**  
   `reviewer.py` 读取文件后未检查内容是否为空。  
   **修复**：`review()` / `debate()` 增加空内容校验，非 `.md` 给出警告。
 
-- [ ] **13. README 逻辑矛盾**  
+- [x] **13. README 逻辑矛盾**  
   2.3（init 不覆盖）与 7.2（升级不覆盖）表述混淆，实为两个不同行为。  
   **修复**：明确区分 "`init` 命令行为" 与 "pip 升级行为"。
 
@@ -34,19 +34,19 @@
 
 ## P1 — 强烈建议
 
-- [ ] **3. debate 模式成本未说明**  
+- [x] **3. debate 模式成本未说明**  
   `--mode debate --rounds 3` 约 6 次 API 调用，5000 tokens 文档约耗 42,000 tokens（$3~5）。  
   **修复**：README 使用示例旁补充成本提示。
 
-- [ ] **9. 缺乏 JSON 输出格式**  
+- [x] **9. 缺乏 JSON 输出格式**  
   当前仅输出 Markdown，CI 无法解析。  
   **修复**：`cli.py` 增加 `--output-format {markdown,json}`。
 
-- [ ] **16. README 未提及 `-v` / `-h`**  
+- [x] **16. README 未提及 `-v` / `-h`**  
   `--verbose` 已存在但文档未介绍；`-h` 为 argparse 默认行为，同样未提及。  
   **修复**：在使用指南中补充 `-v`（详细日志）与 `-h`（帮助）说明。
 
-- [ ] **17. 测试覆盖不足**  
+- [x] **17. 测试覆盖不足**  
   仅 `test_config.py`，未覆盖 API 调用与 reviewer 逻辑。  
   **修复**：新增 `tests/test_api.py`（mock 重试逻辑）、`tests/test_reviewer.py`（空文件检查）。
 
