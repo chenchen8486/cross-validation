@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cv-review"
+version = "0.2.0"
+description = "基于独立 API 盲审的文档交叉验证 CLI 工具，支持轻量评审与多轮闭环博弈"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "CV-Review Team"}
+]
+keywords = ["cross-validation", "review", "llm", "blind-audit", "cli"]
+dependencies = [
+    "openai>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
+[project.scripts]
+cv-review = "cv_review.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+cv_review = ["config/*"]
