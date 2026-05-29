@@ -64,12 +64,14 @@ def review(
     Args:
         file_path: 待评审文档的绝对或相对路径。
         instruction: 用户追加的定向指令，如 ``"重点审查第三章并发模型"``。
+        output_format: 输出格式，``"markdown"`` 或 ``"json"``，默认 ``"markdown"``。
 
     Returns:
-        str: 模型返回的 Markdown 格式评审意见。
+        str: 模型返回的 Markdown 或 JSON 格式评审意见。
 
     Raises:
         FileNotFoundError: 指定文档不存在。
+        ValueError: 文档内容为空。
         RuntimeError: 配置缺失或 API 调用异常。
     """
     path = Path(file_path).resolve()
@@ -130,6 +132,7 @@ def debate(
     rounds: int = 2,
     output_dir: str = "outputs",
     output_format: str = "markdown",
+    instruction: str | None = None,
 ) -> str:
     """执行完整多轮闭环博弈，输出经过交叉验证的设计文档。
 
@@ -144,12 +147,15 @@ def debate(
         file_path: 初始需求或设计文档路径。
         rounds: 迭代轮数，默认 2。
         output_dir: 输出目录，默认 ``outputs``。
+        output_format: 输出格式，``"markdown"`` 或 ``"json"``，默认 ``"markdown"``。
+        instruction: 用户追加的定向关注点，会拼接到 architect 的初始需求中。
 
     Returns:
-        str: 最终输出文件的绝对路径。
+        str: 最终输出文件的绝对路径，或 JSON 字符串。
 
     Raises:
         FileNotFoundError: 输入文档不存在。
+        ValueError: 文档内容为空。
         RuntimeError: 配置缺失或 API 调用异常。
     """
     path = Path(file_path).resolve()
@@ -186,12 +192,16 @@ def debate(
         max_rounds,
     )
 
+    architect_input = f"原始需求：{requirement}"
+    if instruction:
+        architect_input += f"\n\n【用户定向关注点】\n{instruction}"
+
     logger.info("[1/3] 调用【%s】构建初始技术方案...", arch_model)
     current_doc = ask_agent(
         arch_client,
         arch_model,
         prompts.get("architect_system", ""),
-        f"原始需求：{requirement}",
+        architect_input,
         temperature,
     )
 

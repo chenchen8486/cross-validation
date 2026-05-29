@@ -128,6 +128,8 @@ def _validate_api_settings(data: dict[str, Any]) -> None:
     channels = data.get("channels")
     if not isinstance(channels, dict):
         raise RuntimeError("配置文件缺少必需的 'channels' 字段，或该字段不是对象")
+    if not channels:
+        raise RuntimeError("channels 不能为空，请至少配置一个 API 通道")
 
     routing = data.get("runtime_routing")
     if not isinstance(routing, dict):

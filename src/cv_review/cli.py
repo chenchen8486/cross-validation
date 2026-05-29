@@ -136,6 +136,10 @@ def main(argv: list[str] | None = None) -> int:
             print("\n错误: 必须提供 --file 参数，或使用 init 子命令。", file=sys.stderr)
             return 1
 
+        if args.rounds < 1:
+            print("[-] 错误: --rounds 必须为正整数", file=sys.stderr)
+            return 1
+
         file_path = Path(args.file).resolve()
         if not file_path.exists():
             print(f"[-] 错误: 找不到文件 [{file_path}]", file=sys.stderr)
@@ -151,9 +155,6 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.mode == "debate":
-            if args.rounds < 1:
-                print("[-] 错误: --rounds 必须为正整数", file=sys.stderr)
-                return 1
             output_path = debate(
                 str(file_path),
                 rounds=args.rounds,
