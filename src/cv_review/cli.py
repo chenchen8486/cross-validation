@@ -151,11 +151,15 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.mode == "debate":
+            if args.rounds < 1:
+                print("[-] 错误: --rounds 必须为正整数", file=sys.stderr)
+                return 1
             output_path = debate(
                 str(file_path),
                 rounds=args.rounds,
                 output_dir=args.output,
                 output_format=args.output_format,
+                instruction=args.instruction,
             )
             print(f"[+] 交叉验证完成，文档已输出至: {output_path}")
             return 0
@@ -166,6 +170,10 @@ def main(argv: list[str] | None = None) -> int:
 
     except FileNotFoundError as exc:
         logger.error("文件未找到: %s", exc)
+        print(f"[-] 错误: {exc}", file=sys.stderr)
+        return 1
+    except ValueError as exc:
+        logger.error("输入无效: %s", exc)
         print(f"[-] 错误: {exc}", file=sys.stderr)
         return 1
     except RuntimeError as exc:

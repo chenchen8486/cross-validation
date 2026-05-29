@@ -153,6 +153,18 @@ def _validate_api_settings(data: dict[str, Any]) -> None:
                     f"channels['{name}'] 缺少必需字段 '{k}'"
                 )
 
+    temperature = routing.get("temperature")
+    if temperature is not None and not (0 <= temperature <= 2):
+        raise RuntimeError(
+            f"runtime_routing['temperature'] 必须在 0~2 之间，当前值: {temperature}"
+        )
+
+    max_rounds = routing.get("max_rounds")
+    if max_rounds is not None and max_rounds < 1:
+        raise RuntimeError(
+            f"runtime_routing['max_rounds'] 必须 >= 1，当前值: {max_rounds}"
+        )
+
 
 def load_api_settings() -> dict[str, Any]:
     """加载 ``api_settings.json``，返回完整的 API 通道与路由配置。
