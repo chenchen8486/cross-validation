@@ -8,7 +8,34 @@
 
 ---
 
-## 1. 快速开始
+## 1. 为什么需要交叉验证？
+
+你花了整整一下午写了一份《用户登录系统技术设计文档》，自认为考虑周全：
+
+- 使用了 JWT Token 做身份认证
+- 用 Redis 缓存会话状态
+- 接口加了限流保护
+
+你信心满满地准备进入开发阶段。此时，你执行了：
+
+```bash
+/cv docs/login-design.md
+```
+
+一分钟后，独立 API 返回了盲审意见：
+
+> **Token 刷新机制缺失**：JWT 过期后用户如何无感知续期？文档完全未提及。  
+> **Redis 缓存未设 TTL**：大量过期 Token 将持续堆积，最终撑爆内存。  
+> **限流粒度太粗**：只限了接口级别，未限制同一 IP 的暴力破解请求。  
+> **密码错误次数无锁定**：存在明确的暴力破解安全风险。
+
+你愣住了——**这些问题你在写文档时完全没意识到**。
+
+这就是交叉验证的核心价值：**你对自己的设计永远有盲区，而独立的、未被污染的评审者没有**。cv-review 把这个"第二双眼睛"变成了可复用的工具。
+
+---
+
+## 2. 快速开始
 
 ```bash
 git clone https://github.com/your-org/cv-review.git
@@ -20,14 +47,14 @@ cv-review --file README.md
 
 ---
 
-## 2. 安装指南
+## 3. 安装指南
 
-### 2.1 环境要求
+### 3.1 环境要求
 
 - Python >= 3.10
 - 推荐使用虚拟环境（conda / venv）
 
-### 2.2 安装包
+### 3.2 安装包
 
 ```bash
 git clone <仓库地址>
@@ -37,7 +64,7 @@ pip install -e .
 
 安装完成后，全局 `cv-review` 命令即加入 PATH，任意目录均可调用。
 
-### 2.3 初始化配置
+### 3.3 初始化配置
 
 ```bash
 cv-review init
@@ -47,7 +74,7 @@ cv-review init
 
 > **注意**：`init` 不会覆盖你已存在的配置文件，放心执行。
 
-### 2.4 API Key 配置
+### 3.4 API Key 配置
 
 本工具依赖两个独立的外部 API 通道（architect 与 reviewer），你需要分别配置对应的环境变量。
 
@@ -74,7 +101,7 @@ echo 'export DEEPSEEK_API_KEY="sk-你的-DeepSeek-Key"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### 2.5 支持的 API 通道
+### 3.5 支持的 API 通道
 
 默认内置配置支持以下通道（可在 `~/.cv-review/api_settings.json` 中自定义）：
 
@@ -85,7 +112,7 @@ source ~/.bashrc
 
 如需接入其他模型（OpenAI、Claude、GLM 等），直接在配置文件中新增通道即可。
 
-### 2.6 Claude Code CLI 集成（可选）
+### 3.6 Claude Code CLI 集成（推荐使用）
 
 将 `/cv` 命令部署到 Claude Code：
 
@@ -101,26 +128,39 @@ cp docs/cv.md ~/.claude/commands/
 
 ---
 
-## 3. 使用指南
+## 4. 使用指南
 
-### 3.1 轻量盲审（默认，成本最低）
+### 4.1 在 Claude Code 中使用 `/cv`（推荐使用）
+
+在任意工程目录打开 Claude Code，输入：
 
 ```bash
-cv-review --file docs/design.md
+# 轻量评审
+/cv docs/api-design.md
+
+# 定向评审（聚焦特定章节或维度）
+/cv docs/api-design.md 重点审查认证模块的时序漏洞
 ```
 
-轻量模式只调用一次 reviewer 通道，响应最快、Token 消耗最低。适合日常快速检查。
+`/cv` 是 Claude Code 的前端集成，底层仍调用同一个 `cv-review`，但会额外提供**"评审 → 询问是否修改 → 直接 Edit 改文件"**的交互闭环。这是**日常开发中最推荐的使用方式**。
 
-### 3.2 定向盲审（聚焦特定维度）
+### 4.2 `cv-review` 独立 CLI（适合脚本与 CI）
+
+如果你只想快速看评审意见，或需要在 CI 流水线中集成：
 
 ```bash
+# 轻量盲审（默认，只调用 reviewer，成本最低）
+cv-review --file docs/design.md
+
+# 定向盲审
+# 通过 --instruction 追加关注点，避免泛泛而谈
 cv-review --file docs/design.md \
   --instruction "请逐条分析第三章中所有并发模型的潜在竞态条件与死锁风险"
 ```
 
-通过 `--instruction` 追加定向关注点，让评审意见精准聚焦，避免泛泛而谈。
+> **适用场景**：任何终端（bash / zsh / PowerShell）均可直接使用，**不依赖 Claude Code**。输出评审意见到 stdout 后即结束。
 
-### 3.3 完整多轮闭环博弈
+### 4.3 完整多轮闭环博弈（`--mode debate`）
 
 ```bash
 cv-review --file docs/requirement.md --mode debate --rounds 3 --output outputs/
@@ -132,25 +172,9 @@ cv-review --file docs/requirement.md --mode debate --rounds 3 --output outputs/
 3. architect 根据意见修复
 4. 循环 `--rounds` 轮后输出最终文档到 `outputs/DESIGN_DOCUMENT.md`
 
-### 3.4 在 Claude Code 中使用 `/cv`（交互式闭环）
-
-在任意工程目录打开 Claude Code，输入：
-
-```bash
-# 轻量评审
-/cv docs/api-design.md
-
-# 定向评审
-/cv docs/api-design.md 重点审查认证模块的时序漏洞
-```
-
-`/cv` 是 Claude Code 的前端集成，底层仍调用同一个 `cv-review`，但会额外提供**"评审 → 询问是否修改 → 直接 Edit 改文件"**的交互闭环。
-
-> **与 3.1~3.3 的区别**：终端命令 `cv-review` 只输出意见即结束，适合 CI 和脚本；`/cv` 则在 Claude Code 对话内完成评审+修改的闭环。如果你只想看意见，用 `cv-review`；如果你想让 Claude 根据意见自动改文档，用 `/cv`。
-
 ---
 
-## 4. 目录结构
+## 5. 目录结构
 
 ```text
 cv-review/                      # 仓库根目录
@@ -175,9 +199,9 @@ cv-review/                      # 仓库根目录
 
 ---
 
-## 5. 架构与调用流程
+## 6. 架构与调用流程
 
-### 5.1 轻量盲审模式
+### 6.1 轻量盲审模式
 
 ```
 用户输入
@@ -199,7 +223,7 @@ cv-review --file <path> [--instruction "xxx"]
           返回 Markdown 评审意见到 stdout
 ```
 
-### 5.2 完整多轮闭环模式
+### 6.2 完整多轮闭环模式
 
 ```
 用户输入
@@ -218,7 +242,7 @@ cv-review --file <path> --mode debate --rounds N
   └─→ 输出最终文档到 outputs/DESIGN_DOCUMENT.md
 ```
 
-### 5.3 `/cv` Slash Command 调用链
+### 6.3 `/cv` Slash Command 调用链
 
 ```
 Claude Code CLI
@@ -234,21 +258,21 @@ Claude Code CLI
 
 ---
 
-## 6. 关键设计决策
+## 7. 关键设计决策
 
-### 6.1 为什么使用独立进程 + 独立 API？
+### 7.1 为什么使用独立进程 + 独立 API？
 
 - **物理隔离**：`cv-review` 运行在独立 Python 进程中，每次请求只传递 system prompt + 当前文档，不携带 Claude Code 会话的任何历史上下文。
 - **盲审真实**：Reviewer 完全不知道作者是谁、也不知道当前对话的主题，只能基于文档本身进行批判。
 - **成本可控**：轻量模式只调用一次 reviewer，响应快、Token 消耗最低。
 
-### 6.2 为什么配置放在 `~/.cv-review/`？
+### 7.2 为什么配置放在 `~/.cv-review/`？
 
 - **多开发者推广**：每个开发者只需配置一次自己的 API Key，不受源码仓库路径限制。
 - **版本隔离**：升级包时不会覆盖个人配置。
 - **跨平台**：Windows / macOS / Linux 均通过 `Path.home()` 自动定位。
 
-### 6.3 为什么使用标准 Python 包而非脚本？
+### 7.3 为什么使用标准 Python 包而非脚本？
 
 - `pip install -e .` 即可全局使用 `cv-review` 命令。
 - 内置默认模板随包分发，`cv-review init` 后立即可用。
@@ -256,7 +280,7 @@ Claude Code CLI
 
 ---
 
-## 7. 变更记录
+## 8. 变更记录
 
 ### 2026-05-29 v0.2.0 推广级重构
 
