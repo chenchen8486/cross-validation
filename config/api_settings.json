@@ -1,0 +1,20 @@
+{
+  "channels": {
+    "kimi": {
+      "base_url": "[https://api.moonshot.cn/v1](https://api.moonshot.cn/v1)",
+      "api_key_env": "MOONSHOT_API_KEY",
+      "model_name": "moonshot-v1-8k"
+    },
+    "deepseek": {
+      "base_url": "[https://api.deepseek.com/v1](https://api.deepseek.com/v1)",
+      "api_key_env": "DEEPSEEK_API_KEY",
+      "model_name": "deepseek-chat"
+    }
+  },
+  "runtime_routing": {
+    "max_rounds": 2,
+    "temperature": 0.3,
+    "architect_channel": "kimi",
+    "reviewer_channel": "deepseek"
+  }
+}
