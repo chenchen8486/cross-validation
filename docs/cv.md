@@ -22,7 +22,7 @@ argument-hint: <文件路径> [定向指令] | debate <文件路径> [定向指�
 
 当 `$ARGUMENTS` 为空、只有 `help`、`-h` 或 `--help` 时，进入帮助模式。
 
-请使用 `Read` 工具读取文件 `docs/cv-help.md`，然后将其中的 Markdown 内容直接展示给用户。不要包裹在代码块中，保持原样输出即可。
+请使用 `Read` 工具读取文件 `docs/cv_help.md`，然后将其中的 Markdown 内容直接展示给用户。不要包裹在代码块中，保持原样输出即可。
 
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: cv-help
+name: cv_help
 description: 显示 /cv 命令的完整用法、参数说明、路径格式提示与前置配置检查清单。
 ---
 
@@ -17,9 +17,9 @@ description: 显示 /cv 命令的完整用法、参数说明、路径格式提�
 | :--- | :--- |
 | `/cv <文件路径> [定向指令]` | 轻量盲审（最常用，1 次 API 调用） |
 | `/cv debate [<文件路径>] [定向指令]` | 多轮闭环博弈（交互向导，自动写+改） |
-| `/cv-debate [<文件路径>] [定向指令]` | 多轮闭环博弈的快捷方式 |
-| `/cv-help` | 显示此帮助 |
-| `/cv help` | 同 `/cv-help` |
+| `/cv_debate [<文件路径>] [定向指令]` | 多轮闭环博弈的快捷方式 |
+| `/cv_help` | 显示此帮助 |
+| `/cv help` | 同 `/cv_help` |
 
 ## 📂 文件路径格式说明
 
@@ -42,8 +42,8 @@ description: 显示 /cv 命令的完整用法、参数说明、路径格式提�
 /cv docs/api-design.md 重点审查认证模块时序漏洞
 /cv src/core/auth.py 审查登录函数的异常处理
 /cv debate docs/requirement.md
-/cv-debate docs/requirement.md
-/cv-help
+/cv_debate docs/requirement.md
+/cv_help
 ```
 
 ## ⚙️ 前置配置（首次使用必做）
@@ -54,7 +54,7 @@ description: 显示 /cv 命令的完整用法、参数说明、路径格式提�
 
 ## 🔄 两种模式对比
 
-| 维度 | 轻量盲审（默认） | 多轮闭环博弈（debate / cv-debate） |
+| 维度 | 轻量盲审（默认） | 多轮闭环博弈（debate / cv_debate） |
 | :--- | :--- | :--- |
 | **输入** | 已有文档，找人挑错 | 只有需求，让 AI 自动写+改 |
 | **API 调用** | 1 次 reviewer | 1 + 2×N 次 |

@@ -141,17 +141,17 @@ source ~/.bashrc
 ```bash
 # 所有平台通用（Windows Git Bash / WSL / macOS / Linux）
 mkdir -p ~/.claude/commands
-cp docs/cv.md docs/cv-help.md docs/cv-debate.md ~/.claude/commands/
+cp docs/cv.md docs/cv_help.md docs/cv_debate.md ~/.claude/commands/
 ```
 
 > **Windows CMD 用户**：若使用原生 CMD，请将 `~` 替换为 `%USERPROFILE%`，将 `cp` 替换为 `copy`：
 > ```cmd
 > copy "docs\cv.md" "%USERPROFILE%\.claude\commands\"
-> copy "docs\cv-help.md" "%USERPROFILE%\.claude\commands\"
-> copy "docs\cv-debate.md" "%USERPROFILE%\.claude\commands\"
+> copy "docs\cv_help.md" "%USERPROFILE%\.claude\commands\"
+> copy "docs\cv_debate.md" "%USERPROFILE%\.claude\commands\"
 > ```
 
-重启 Claude Code CLI 后，输入 `/` 即可看到 `/cv`、`/cv-help`、`/cv-debate` 三个命令。
+重启 Claude Code CLI 后，输入 `/` 即可看到 `/cv`、`/cv_help`、`/cv_debate` 三个命令。
 
 ---
 
@@ -219,10 +219,10 @@ cp docs/cv.md docs/cv-help.md docs/cv-debate.md ~/.claude/commands/
 #### 模式 F：快捷进入 Debate 模式
 
 ```bash
-/cv-debate docs/requirement.md
+/cv_debate docs/requirement.md
 ```
 
-- `/cv-debate` 是 `/cv debate` 的快捷命令，功能完全一致。
+- `/cv_debate` 是 `/cv debate` 的快捷命令，功能完全一致。
 - 在 Claude Code 的命令菜单中直接可见，无需记忆参数。
 
 #### 路径兼容性说明
@@ -521,8 +521,8 @@ cv-review/                      # 仓库根目录
 │   └── test_config.py          # 单元测试（配置加载与路径优先级）
 └── docs/
     ├── cv.md                   # Claude Code Slash Command `/cv` 定义文件
-    ├── cv-help.md              # Claude Code Slash Command `/cv-help` 定义文件
-    ├── cv-debate.md            # Claude Code Slash Command `/cv-debate` 定义文件
+    ├── cv_help.md              # Claude Code Slash Command `/cv_help` 定义文件
+    ├── cv_debate.md            # Claude Code Slash Command `/cv_debate` 定义文件
     └── plan.md                 # 重构计划文档
 ```
 
@@ -613,9 +613,9 @@ Claude Code CLI
 
 ### 2026-05-29 v0.2.4 命令命名标准化
 
-- **统一连字符命名**：将命令文件名统一为标准 CLI 风格，`cvdebate.md` → `cv-debate.md`，并新增 `cv-help.md`，菜单中显示为 `/cv-debate`、`/cv-help`，更直观美观。
-- **移除带空格文件名**：删除 `cv help.md`，避免 Claude Code CLI 将其解析为 `/cv-help` 时与用户预期不符。
-- **参数用法与独立命令并存**：保留 `/cv help`、`/cv debate` 参数用法，同时提供 `/cv-help`、`/cv-debate` 独立快捷命令，兼顾习惯与菜单可见性。
+- **统一连字符命名**：将命令文件名统一为标准 CLI 风格，`cvdebate.md` → `cv_debate.md`，并新增 `cv_help.md`，菜单中显示为 `/cv_debate`、`/cv_help`。
+- **移除带空格文件名**：删除 `cv help.md`，避免 Claude Code CLI 解析歧义。
+- **参数用法与独立命令并存**：保留 `/cv help`、`/cv debate` 参数用法，同时提供 `/cv_help`、`/cv_debate` 独立快捷命令，兼顾习惯与菜单可见性。
 - **README 同步更新**：安装说明、使用模式、目录结构与变更记录全面刷新。
 
 ### 2026-05-29 v0.2.3 命令菜单优化与帮助格式升级

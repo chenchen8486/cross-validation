@@ -1,10 +1,10 @@
 ---
-name: cv-debate
+name: cv_debate
 description: 【快捷命令】多轮闭环博弈盲审。等价于 /cv debate，交互式向导生成设计文档。
 argument-hint: [<文件路径>] [定向指令]
 ---
 
-# /cv-debate — 多轮闭环博弈
+# /cv_debate — 多轮闭环博弈
 
 此命令是 `/cv debate` 的快捷方式，功能与逻辑完全一致。
 
