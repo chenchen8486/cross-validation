@@ -113,6 +113,47 @@ def _resolve_config_path(filename: str) -> Path:
     )
 
 
+def _validate_api_settings(data: dict[str, Any]) -> None:
+    """校验 ``api_settings.json`` 的结构完整性。
+
+    Args:
+        data: 已解析的配置字典。
+
+    Raises:
+        RuntimeError: 缺少必需字段、类型错误或通道配置不完整。
+    """
+    if not isinstance(data, dict):
+        raise RuntimeError("配置文件根节点必须是 JSON 对象（dict）")
+
+    channels = data.get("channels")
+    if not isinstance(channels, dict):
+        raise RuntimeError("配置文件缺少必需的 'channels' 字段，或该字段不是对象")
+
+    routing = data.get("runtime_routing")
+    if not isinstance(routing, dict):
+        raise RuntimeError("配置文件缺少必需的 'runtime_routing' 字段，或该字段不是对象")
+
+    required_routing_keys = ("architect_channel", "reviewer_channel")
+    for key in required_routing_keys:
+        channel_name = routing.get(key)
+        if not channel_name:
+            raise RuntimeError(f"runtime_routing 缺少必需的字段: '{key}'")
+        if channel_name not in channels:
+            raise RuntimeError(
+                f"runtime_routing['{key}'] = '{channel_name}' 在 channels 中找不到对应配置"
+            )
+
+    required_channel_keys = ("base_url", "api_key_env", "model_name")
+    for name, cfg in channels.items():
+        if not isinstance(cfg, dict):
+            raise RuntimeError(f"channels['{name}'] 必须是对象")
+        for k in required_channel_keys:
+            if not cfg.get(k):
+                raise RuntimeError(
+                    f"channels['{name}'] 缺少必需字段 '{k}'"
+                )
+
+
 def load_api_settings() -> dict[str, Any]:
     """加载 ``api_settings.json``，返回完整的 API 通道与路由配置。
 
@@ -122,6 +163,7 @@ def load_api_settings() -> dict[str, Any]:
     Raises:
         FileNotFoundError: 找不到配置文件。
         json.JSONDecodeError: JSON 格式损坏。
+        RuntimeError: 配置结构校验失败。
     """
     path = _resolve_config_path("api_settings.json")
     try:
@@ -130,6 +172,8 @@ def load_api_settings() -> dict[str, Any]:
     except json.JSONDecodeError as exc:
         logger.error("配置文件 [%s] JSON 格式损坏: %s", path, exc)
         raise
+
+    _validate_api_settings(data)
     return data
 
 

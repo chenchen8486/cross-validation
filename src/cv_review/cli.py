@@ -91,6 +91,12 @@ def _build_parser() -> argparse.ArgumentParser:
         default="outputs",
         help="debate 模式下输出目录，默认 outputs/。",
     )
+    parser.add_argument(
+        "--output-format",
+        choices=["markdown", "json"],
+        default="markdown",
+        help="输出格式：markdown（默认）或 json。",
+    )
 
     return parser
 
@@ -136,7 +142,11 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
         if args.mode == "review":
-            feedback = review(str(file_path), instruction=args.instruction)
+            feedback = review(
+                str(file_path),
+                instruction=args.instruction,
+                output_format=args.output_format,
+            )
             print(feedback)
             return 0
 
@@ -145,6 +155,7 @@ def main(argv: list[str] | None = None) -> int:
                 str(file_path),
                 rounds=args.rounds,
                 output_dir=args.output,
+                output_format=args.output_format,
             )
             print(f"[+] 交叉验证完成，文档已输出至: {output_path}")
             return 0

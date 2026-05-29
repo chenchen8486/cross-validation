@@ -9,6 +9,12 @@ import os
 from typing import Any
 
 from openai import OpenAI
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +58,17 @@ def init_api_client(channel_config: dict[str, Any]) -> tuple[OpenAI, str]:
     return client, model_name
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type(Exception),
+    reraise=True,
+    before_sleep=lambda retry_state: logger.warning(
+        "API 调用失败 [%s]，第 %d 次重试...",
+        retry_state.args[1] if len(retry_state.args) > 1 else "unknown",
+        retry_state.attempt_number,
+    ),
+)
 def ask_agent(
     client: OpenAI,
     model: str,
@@ -64,6 +81,8 @@ def ask_agent(
     每次调用仅传递 system prompt 与当前 user content，不携带任何历史
     上下文，确保盲审的绝对隔离性。
 
+    内置指数退避重试策略：最多 3 次，等待时间 2s → 4s → 8s。
+
     Args:
         client: 已初始化的 OpenAI 兼容客户端。
         model: 模型名称。
@@ -75,7 +94,7 @@ def ask_agent(
         str: 模型生成的文本内容。
 
     Raises:
-        RuntimeError: API 调用过程中发生网络或逻辑异常。
+        RuntimeError: API 调用过程中发生网络或逻辑异常，且重试全部失败。
     """
     try:
         response = client.chat.completions.create(
@@ -85,6 +104,7 @@ def ask_agent(
                 {"role": "user", "content": user_content},
             ],
             temperature=temperature,
+            timeout=60,
         )
         content = response.choices[0].message.content
         if content is None:

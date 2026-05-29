@@ -94,7 +94,7 @@ cv-review init
 
 首次运行会在用户家目录生成 `~/.cv-review/`，包含默认的 `api_settings.json` 与 `prompts.txt` 模板。
 
-> **注意**：`init` 不会覆盖你已存在的配置文件，放心执行。
+> **注意**：`cv-review init` 命令不会覆盖你已存在的配置文件，放心执行。
 
 ### 3.4 API Key 配置
 
@@ -180,6 +180,10 @@ cv-review --file docs/design.md \
   --instruction "请逐条分析第三章中所有并发模型的潜在竞态条件与死锁风险"
 ```
 
+> **常用参数**：
+> - `cv-review --help`（或 `-h`）：查看全部命令与参数说明。
+> - `cv-review --file README.md -v`：启用详细日志，查看 API 调用过程与调试信息。
+>
 > **适用场景**：任何终端（bash / zsh / PowerShell）均可直接使用，**不依赖 Claude Code**。输出评审意见到 stdout 后即结束。
 
 ### 4.3 完整多轮闭环博弈（`--mode debate`）
@@ -193,6 +197,8 @@ cv-review --file docs/requirement.md --mode debate --rounds 3 --output outputs/
 2. reviewer 盲审并指出漏洞
 3. architect 根据意见修复
 4. 循环 `--rounds` 轮后输出最终文档到 `outputs/DESIGN_DOCUMENT.md`
+
+> **成本提示**：`--mode debate --rounds 3` 约消耗 6 次 API 调用。以 5000 tokens 文档为例，总消耗约 42,000 tokens（约 $3~5）。建议根据文档长度和预算调整轮数。
 
 ---
 
@@ -291,7 +297,7 @@ Claude Code CLI
 ### 7.2 为什么配置放在 `~/.cv-review/`？
 
 - **多开发者推广**：每个开发者只需配置一次自己的 API Key，不受源码仓库路径限制。
-- **版本隔离**：升级包时不会覆盖个人配置。
+- **版本隔离**：通过 `pip install --upgrade` 升级包时，不会覆盖 `~/.cv-review/` 中的个人配置。
 - **跨平台**：Windows / macOS / Linux 均通过 `Path.home()` 自动定位。
 
 ### 7.3 为什么使用标准 Python 包而非脚本？

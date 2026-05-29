@@ -5,6 +5,7 @@
 进行多轮迭代，输出经过交叉验证的高置信度设计文档。
 """
 
+import json
 import logging
 import os
 from pathlib import Path
@@ -16,7 +17,44 @@ from cv_review.api import init_api_client, ask_agent
 logger = logging.getLogger(__name__)
 
 
-def review(file_path: str, instruction: str | None = None) -> str:
+def _check_file(path: Path) -> str:
+    """读取文件并执行基础有效性检查。
+
+    Args:
+        path: 已解析的文件路径。
+
+    Returns:
+        str: 文件内容。
+
+    Raises:
+        ValueError: 文件为空或仅含空白。
+        RuntimeError: 读取失败。
+    """
+    try:
+        with open(path, "r", encoding="utf-8-sig") as f:
+            content = f.read()
+    except OSError as exc:
+        logger.error("读取文档失败 [%s]: %s", path, exc)
+        raise RuntimeError(f"读取文档失败 [{path}]: {exc}") from exc
+
+    if not content.strip():
+        raise ValueError(f"文档内容为空或仅含空白字符: {path}")
+
+    if path.suffix.lower() not in (".md", ".txt", ".markdown"):
+        logger.warning(
+            "文件扩展名为 [%s]，非标准 Markdown/Text 格式，评审效果可能不佳: %s",
+            path.suffix,
+            path,
+        )
+
+    return content
+
+
+def review(
+    file_path: str,
+    instruction: str | None = None,
+    output_format: str = "markdown",
+) -> str:
     """对指定文档执行轻量盲审。
 
     读取文档内容后，以 ``reviewer_system`` 为角色设定，调用独立 API
@@ -38,12 +76,7 @@ def review(file_path: str, instruction: str | None = None) -> str:
     if not path.exists():
         raise FileNotFoundError(f"找不到待评审文档: {path}")
 
-    try:
-        with open(path, "r", encoding="utf-8-sig") as f:
-            doc_content = f.read()
-    except OSError as exc:
-        logger.error("读取文档失败 [%s]: %s", path, exc)
-        raise RuntimeError(f"读取文档失败 [{path}]: {exc}") from exc
+    doc_content = _check_file(path)
 
     api_settings = load_api_settings()
     prompts = load_prompts()
@@ -78,6 +111,17 @@ def review(file_path: str, instruction: str | None = None) -> str:
     )
     feedback = ask_agent(client, model, system_prompt, user_content, temperature)
     logger.info("盲审完成: file=%s", path)
+
+    if output_format == "json":
+        return json.dumps(
+            {
+                "file": str(path),
+                "model": model,
+                "feedback": feedback,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
     return feedback
 
 
@@ -85,6 +129,7 @@ def debate(
     file_path: str,
     rounds: int = 2,
     output_dir: str = "outputs",
+    output_format: str = "markdown",
 ) -> str:
     """执行完整多轮闭环博弈，输出经过交叉验证的设计文档。
 
@@ -111,12 +156,7 @@ def debate(
     if not path.exists():
         raise FileNotFoundError(f"找不到输入文档: {path}")
 
-    try:
-        with open(path, "r", encoding="utf-8-sig") as f:
-            requirement = f.read()
-    except OSError as exc:
-        logger.error("读取输入文档失败 [%s]: %s", path, exc)
-        raise RuntimeError(f"读取输入文档失败 [{path}]: {exc}") from exc
+    requirement = _check_file(path)
 
     api_settings = load_api_settings()
     prompts = load_prompts()
@@ -195,4 +235,16 @@ def debate(
         raise RuntimeError(f"写入输出文件失败 [{output_path}]: {exc}") from exc
 
     logger.info("交叉验证迭代结束，文档已输出至: %s", output_path.resolve())
+
+    if output_format == "json":
+        return json.dumps(
+            {
+                "file": str(path),
+                "output_path": str(output_path.resolve()),
+                "rounds": max_rounds,
+                "model": arch_model,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
     return str(output_path.resolve())
