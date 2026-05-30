@@ -16,6 +16,19 @@ from cv_review.api import init_api_client, ask_agent
 
 logger = logging.getLogger(__name__)
 
+# 常见二进制文件扩展名，直接拒绝评审以避免乱码和 Token 浪费
+BINARY_EXTENSIONS: set[str] = {
+    ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".pdf",
+    ".doc", ".docx", ".xls", ".xlsx", ".zip", ".tar", ".gz",
+    ".rar", ".exe", ".dll", ".so", ".dylib", ".bin", ".dat",
+}
+
+# 文件大小限制：100 KB（超出则拒绝，防止 Token 超限和成本失控）
+MAX_FILE_SIZE = 100 * 1024
+
+# 内容长度限制：50,000 字符（约 12K tokens）
+MAX_CHARS = 50000
+
 
 def _check_file(path: Path) -> str:
     """读取文件并执行基础有效性检查。
@@ -24,12 +37,28 @@ def _check_file(path: Path) -> str:
         path: 已解析的文件路径。
 
     Returns:
-        str: 文件内容。
+        str: 文件内容（若超长会自动截断）。
 
     Raises:
-        ValueError: 文件为空或仅含空白。
+        ValueError: 文件为空、仅含空白、为二进制文件或过大。
         RuntimeError: 读取失败。
     """
+    suffix = path.suffix.lower()
+    if suffix in BINARY_EXTENSIONS:
+        raise ValueError(f"不支持评审二进制文件 [{path.suffix}]: {path}")
+
+    try:
+        file_size = path.stat().st_size
+    except OSError as exc:
+        logger.error("获取文件大小失败 [%s]: %s", path, exc)
+        raise RuntimeError(f"获取文件大小失败 [{path}]: {exc}") from exc
+
+    if file_size > MAX_FILE_SIZE:
+        raise ValueError(
+            f"文件过大 ({file_size / 1024:.1f} KB)，"
+            f"超过 {MAX_FILE_SIZE / 1024:.0f} KB 限制: {path}"
+        )
+
     try:
         with open(path, "r", encoding="utf-8-sig") as f:
             content = f.read()
@@ -40,9 +69,18 @@ def _check_file(path: Path) -> str:
     if not content.strip():
         raise ValueError(f"文档内容为空或仅含空白字符: {path}")
 
-    if path.suffix.lower() not in (".md", ".txt", ".markdown"):
+    if len(content) > MAX_CHARS:
         logger.warning(
-            "文件扩展名为 [%s]，非标准 Markdown/Text 格式，评审效果可能不佳: %s",
+            "文件内容过长 (%d 字符)，已截断至 %d 字符",
+            len(content),
+            MAX_CHARS,
+        )
+        content = content[:MAX_CHARS] + "\n\n...（内容已截断）"
+
+    if suffix not in (".md", ".txt", ".markdown"):
+        logger.warning(
+            "文件扩展名为 [%s]，非标准 Markdown/Text 格式，"
+            "评审效果可能不佳: %s",
             path.suffix,
             path,
         )
@@ -93,7 +131,7 @@ def review(
             f"请检查 api_settings.json 的 channels 定义。"
         )
 
-    client, model = init_api_client(reviewer_cfg)
+    adapter, model = init_api_client(reviewer_cfg)
     temperature = routing.get("temperature", 0.3)
     system_prompt = prompts.get("reviewer_system", "")
 
@@ -111,7 +149,9 @@ def review(
         model,
         bool(instruction),
     )
-    feedback = ask_agent(client, model, system_prompt, user_content, temperature)
+    feedback = ask_agent(
+        adapter, model, system_prompt, user_content, temperature,
+    )
     logger.info("盲审完成: file=%s", path)
 
     if output_format == "json":
@@ -180,10 +220,10 @@ def debate(
             "请检查 api_settings.json 的 runtime_routing 定义。"
         )
 
-    arch_client, arch_model = init_api_client(arch_cfg)
-    rev_client, rev_model = init_api_client(rev_cfg)
+    adapter_arch, arch_model = init_api_client(arch_cfg)
+    adapter_rev, rev_model = init_api_client(rev_cfg)
     temperature = routing.get("temperature", 0.3)
-    max_rounds = rounds if rounds > 0 else routing.get("max_rounds", 2)
+    max_rounds = rounds  # cli.py 已确保 rounds >= 1
 
     logger.info(
         "启动多轮闭环博弈: architect=%s, reviewer=%s, rounds=%d",
@@ -196,9 +236,9 @@ def debate(
     if instruction:
         architect_input += f"\n\n【用户定向关注点】\n{instruction}"
 
-    logger.info("[1/3] 调用【%s】构建初始技术方案...", arch_model)
+    logger.info("[初始化] 调用【%s】构建初始技术方案...", arch_model)
     current_doc = ask_agent(
-        arch_client,
+        adapter_arch,
         arch_model,
         prompts.get("architect_system", ""),
         architect_input,
@@ -207,10 +247,13 @@ def debate(
 
     for r in range(1, max_rounds + 1):
         logger.info(
-            "[2/3] 第 %d 轮交叉验证：调用【%s】盲审...", r, rev_model
+            "[第 %d/%d 轮] 调用【%s】盲审...",
+            r,
+            max_rounds,
+            rev_model,
         )
         feedback = ask_agent(
-            rev_client,
+            adapter_rev,
             rev_model,
             prompts.get("reviewer_system", ""),
             f"请盲审以下技术文档，直接指出其中的漏洞与不合理之处：\n\n{current_doc}",
@@ -218,7 +261,10 @@ def debate(
         )
 
         logger.info(
-            "[3/3] 第 %d 轮审计意见返回，交由【%s】修复...", r, arch_model
+            "[第 %d/%d 轮] 调用【%s】修复...",
+            r,
+            max_rounds,
+            arch_model,
         )
         architect_input = (
             f"这是你前一版的设计文档：\n\n{current_doc}\n\n"
@@ -226,7 +272,7 @@ def debate(
             f"请结合上述意见，输出优化后的全新一版技术设计文档。"
         )
         current_doc = ask_agent(
-            arch_client,
+            adapter_arch,
             arch_model,
             prompts.get("architect_system", ""),
             architect_input,

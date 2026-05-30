@@ -65,7 +65,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-f", "--file",
         type=str,
-        help="待评审或博弈的文档路径。",
+        help="待评审或博弈的文档路径（评审/博弈模式下必填）。",
     )
     parser.add_argument(
         "-i", "--instruction",
@@ -114,9 +114,13 @@ def main(argv: list[str] | None = None) -> int:
     """
     # Windows 终端默认编码为 GBK，强制切换为 UTF-8 以正确显示中文
     if sys.platform == "win32":
-        import io
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+            sys.stderr.reconfigure(encoding="utf-8")
+        except AttributeError:
+            import io
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 
     parser = _build_parser()
     args = parser.parse_args(argv)

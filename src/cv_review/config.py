@@ -154,6 +154,12 @@ def _validate_api_settings(data: dict[str, Any]) -> None:
                 raise RuntimeError(
                     f"channels['{name}'] 缺少必需字段 '{k}'"
                 )
+        api_format = cfg.get("api_format", "openai")
+        if api_format not in ("openai", "anthropic"):
+            raise RuntimeError(
+                f"channels['{name}'] 的 api_format 必须是 'openai' 或 'anthropic'，"
+                f"当前值: {api_format}"
+            )
 
     temperature = routing.get("temperature")
     if temperature is not None and not (0 <= temperature <= 2):
@@ -214,16 +220,23 @@ def load_prompts() -> dict[str, str]:
                 stripped = raw_line.strip()
                 if stripped.startswith("[") and stripped.endswith("]"):
                     if current_key is not None:
-                        prompts[current_key] = "\n".join(current_lines).strip()
+                        value = "\n".join(current_lines).strip()
+                        if value:
+                            prompts[current_key] = value
                     current_key = stripped[1:-1]
                     current_lines = []
                 else:
                     if current_key is not None:
                         current_lines.append(raw_line.rstrip())
             if current_key is not None:
-                prompts[current_key] = "\n".join(current_lines).strip()
+                value = "\n".join(current_lines).strip()
+                if value:
+                    prompts[current_key] = value
     except OSError as exc:
         logger.error("读取 Prompt 配置文件失败 [%s]: %s", path, exc)
         raise
+
+    if not prompts:
+        raise RuntimeError(f"Prompt 配置文件 [{path}] 为空或格式无效")
 
     return prompts
