@@ -1,19 +1,25 @@
-# cv-review: 基于独立 API 盲审的文档交叉验证 CLI 工具
+# cv-review：文档交叉验证工具
 
-在复杂软件系统架构设计、算法推演以及技术方案制定过程中，设计文档的严谨性直接决定后续工程的成败。然而，传统的单会话 AI 辅助工具存在**思维定势、用户谄媚以及长文本注意力分散**等缺陷。
+> **cv-review** 首先是一个**命令**——安装后你在终端输入 `cv-review --file 文档.md`，它就会调用独立模型做交叉验证。
+> 
+> 它同时也是 **PyPI 包名**（`pip install cv-review`）和**产品名**。源码内部的 Python 模块叫 `cv_review`（下划线），而你正在阅读的 git 仓库叫 `cross-validation`。
 
-**cv-review** 通过引入**"同行评审（Peer Review）"**机制，在**完全物理隔离的独立进程**中调用未被污染的外部大模型 API，对指定文档进行盲审交叉验证，从而逼近更优的设计质量。
+让 AI 写代码、写文档时，你是否遇到过这种情况：它越写越顺，你却越看越心虚？方案看似合理，实则暗藏漏洞；它反复强调的"最佳实践"，可能只是训练数据里的偏见。
 
-同时提供 **Claude Code CLI 全局 Slash Command `/cv`**，支持在任意工程目录下对任意 Markdown 文档进行轻量或深度评审，无需关心源码位置。
+这不是你的错觉。大型语言模型在单一会话中长期运行，必然会出现**思维疲劳**——它会陷入自我重复，对明显的逻辑漏洞视而不见，甚至开始说你想听的话，而不是正确的话。
+
+cv-review 的核心价值很简单：**用另一个模型来验证当前模型的输出**。我们把这叫作**交叉验证**。
+
+同时提供 **Claude Code CLI 全局 Slash Command `/cv`**，支持在任意工程目录下对任意文档进行轻量或深度验证，无需关心源码位置。
 
 ---
 
 ## 1. 为什么需要交叉验证？
 
-假设你刚写完一份《用户登录系统技术设计文档》，核心内容如下：
+假设 AI 刚帮你起草了一份《登录模块设计》，文件保存在 `docs/login-module.md`，核心内容如下：
 
 ```markdown
-## 登录系统设计
+## 登录模块设计
 
 ### 身份认证
 - 使用 JWT Token，过期时间 2 小时
@@ -26,26 +32,26 @@
 - 密码传输使用 HTTPS
 ```
 
-你检查了两遍，觉得逻辑自洽、考虑周全，准备提交评审。
+AI 信誓旦旦地表示逻辑自洽、考虑周全。你也挑不出毛病。
 
 然后你执行了：
 
 ```bash
-/cv docs/login-design.md
+/cv docs/login-module.md
 ```
 
-一分钟后，独立 API 的盲审意见返回了——
+一分钟后，另一个独立模型的交叉验证意见返回了——
 
 ### 校验前 vs 校验后
 
-| 文档原文（校验前） | 盲审发现（校验后） |
+| 文档原文（校验前） | 交叉验证发现（校验后） |
 | :--- | :--- |
 | "JWT Token 过期时间 2 小时，安全性高" | ❌ **Token 刷新机制缺失**：2 小时后用户被强制登出，体验断裂；文档完全未说明如何无感知续期 |
 | "使用 Redis 缓存 Token，性能好" | ❌ **缓存未设 TTL**：过期 Token 永不删除，内存持续增长，最终 OOM |
 | "接口限流，每秒 100 次请求" | ❌ **限流粒度太粗**：只限接口级别，同一 IP 可无限次尝试不同账号密码，存在暴力破解风险 |
 | "密码传输使用 HTTPS，安全可靠" | ❌ **密码错误次数无锁定**：攻击者可无限次猜测密码，HTTPS 只防窃听不防爆破 |
 
-你愣住了。这些问题你在写文档时**完全没意识到**——因为它们都是你"觉得自己考虑到了"的盲区。
+结果出乎意料。这些漏洞 AI 在起草时**完全没意识到**——因为它们恰恰是它"觉得自己考虑到了"的盲区。
 
 **修正后的文档应该补充**：
 - Token 自动续期策略（Refresh Token 或滑动过期）
@@ -53,7 +59,7 @@
 - IP 级别的登录失败锁定（如 5 次错误锁定 15 分钟）
 - 账户级别的异常登录告警
 
-这就是交叉验证的核心价值：**你对自己的设计永远有盲区，而独立的、未被污染的评审者没有**。cv-review 把这个"第二双眼睛"变成了可复用的工具。
+这就是交叉验证的核心价值：**单模型对自身的输出永远有盲区，而另一个没有先入之见的模型不会**。cv-review 把这个"第二双眼睛"变成了可复用的工具。
 
 ---
 
@@ -127,12 +133,12 @@ source ~/.bashrc
 
 默认内置配置支持以下通道（可在 `~/.cv-review/api_settings.json` 中自定义）：
 
-| 通道 | 基础地址 | 环境变量 | 默认模型 |
-| :--- | :--- | :--- | :--- |
-| Kimi | `https://api.kimi.com/coding/` | `KIMI_API_KEY` | `kimi-k2.6` |
-| DeepSeek | `https://api.deepseek.com` | `DEEPSEEK_API_KEY` | `deepseek-chat` |
+| 通道 | 基础地址 | 环境变量 | 默认模型 | API 格式 |
+| :--- | :--- | :--- | :--- | :--- |
+| Kimi | `https://api.kimi.com/coding/` | `KIMI_API_KEY` | `kimi-k2.6` | `anthropic` |
+| DeepSeek | `https://api.deepseek.com` | `DEEPSEEK_API_KEY` | `deepseek-chat` | `openai` |
 
-如需接入其他模型（OpenAI、Claude、GLM 等），直接在配置文件中新增通道即可。
+如需接入其他模型（OpenAI、Claude、GLM 等），在配置文件 `api_settings.json` 中新增通道时，需指定对应的 `api_format`（`openai` 或 `anthropic`）。
 
 ### 3.6 Claude Code CLI 集成（推荐使用）
 
@@ -161,13 +167,13 @@ cp docs/cv.md docs/cv_help.md docs/cv_debate.md ~/.claude/commands/
 
 `/cv` 是 Claude Code CLI 的**全局 Slash Command**，安装后可在任意工程目录使用。它的核心价值是提供**"评审 → 询问是否修改 → 直接 Edit 改文件"**的交互闭环。
 
-#### 模式 A：轻量盲审（最常用）
+#### 模式 A：轻量验证（最常用）
 
 ```bash
 /cv docs/api-design.md
 ```
 
-- 对指定文档执行一次独立 API 盲审。
+- 对指定文档执行一次独立模型的交叉验证。
 - 评审结果直接打印在当前对话窗口，主 Claude 可基于结果与你讨论修改方案。
 
 #### 模式 B：定向评审（精准聚焦）
@@ -194,19 +200,32 @@ cp docs/cv.md docs/cv_help.md docs/cv_debate.md ~/.claude/commands/
 ```
 
 - `/cv` 不仅支持 `.md`，也支持 `.py`、`.txt` 等任何纯文本文件。
-- 对代码的评审同样保持物理隔离与盲审原则。
+- 对代码的验证同样保持完全隔离与客观独立原则。
 
-#### 模式 D：多轮闭环博弈（深度生成）
+#### 模式 D：智能意图模式（自动扫描）
 
 ```bash
-/cv debate docs/requirement.md
+/cv 你帮我校验当前工程的代码合理吗
+/cv 检查一下这个项目的架构设计有没有漏洞
+/cv 看看这个工程的异常处理是否完善
+```
+
+- **不指定文件路径**，直接输入自然语言请求。
+- `/cv` 会自动识别意图，扫描工程中的相关文件（代码、文档或两者），聚合成临时文档后提交交叉验证。
+- 自动排除测试目录、缓存目录和依赖目录，扫描上限为 10 个文件，聚合内容上限约 80KB。
+- 评审完成后会提示："如需针对单个文件深度审查，请使用 `/cv <文件路径>`。"
+
+#### 模式 E：多轮闭环博弈（深度生成）
+
+```bash
+/cv_debate docs/requirement.md
 ```
 
 - 进入**交互式向导**，Claude 会依次询问：迭代轮数、输出目录、定向关注点。
 - 系统自动调用 `architect + reviewer` 双通道进行多轮博弈，最终输出完整设计文档。
-- 全程只需回答几个问题，无需记忆任何 CLI 参数。
+- 全程只需回答几个问题，无需记忆 CLI 参数。
 
-#### 模式 E：查看帮助
+#### 模式 F：查看帮助
 
 ```bash
 /cv help
@@ -216,25 +235,20 @@ cp docs/cv.md docs/cv_help.md docs/cv_debate.md ~/.claude/commands/
 - 不确定怎么用时，随时输入 `/cv help`。
 - 也可直接输入 `/cv`（无参数），会自动进入帮助模式。
 
-#### 模式 F：快捷进入 Debate 模式
-
-```bash
-/cv_debate docs/requirement.md
-```
-
-- `/cv_debate` 是 `/cv debate` 的快捷命令，功能完全一致。
-- 在 Claude Code 的命令菜单中直接可见，无需记忆参数。
-
 #### 路径兼容性说明
 
 `/cv` 支持所有常见路径格式，底层会自动处理：
 
-| 平台 | 示例路径 | 说明 |
+| 格式 | 示例路径 | 说明 |
 | :--- | :--- | :--- |
 | 相对路径 | `docs/design.md` | 基于当前工程目录解析 |
 | Windows 正斜杠 | `D:/project/docs/design.md` | ✅ 推荐，避免转义问题 |
 | Windows 反斜杠 | `D:\project\docs\design.md` | ✅ 支持，双引号包裹后安全传递 |
+| Windows 混合斜杠 | `D:/project\docs/design.md` | ✅ 支持，pathlib 自动标准化 |
+| Windows 盘符（大小写不敏感） | `c:/project/docs.md` / `C:\project\docs.md` | ✅ 支持 |
 | Linux / macOS | `/home/user/docs/design.md` | ✅ 原生支持 |
+| 当前目录 | `./config.py` / `.gitignore` | ✅ 支持 |
+| 上级目录 | `../shared/utils.py` | ✅ 支持 |
 
 > 💡 **建议**：Windows 用户优先使用正斜杠 `/`，可减少因 Shell 转义导致的路径解析问题。
 > 如果路径不存在，`/cv` 会明确提示错误原因，并请求重新输入。
@@ -258,7 +272,7 @@ cp docs/cv.md docs/cv_help.md docs/cv_debate.md ~/.claude/commands/
 | :--- | :--- | :--- | :--- |
 | `-f` | `--file` | （必填） | 待评审或博弈的文档路径 |
 | `-i` | `--instruction` | `None` | 定向评审指令，如 `"重点审查第三章并发模型"` |
-| `-m` | `--mode` | `review` | 评审模式：`review`（轻量盲审）或 `debate`（多轮闭环） |
+| `-m` | `--mode` | `review` | 验证模式：`review`（轻量验证）或 `debate`（多轮闭环） |
 | `-r` | `--rounds` | `2` | `debate` 模式下的迭代轮数 |
 | `-o` | `--output` | `outputs` | `debate` 模式下输出目录 |
 | | `--output-format` | `markdown` | 输出格式：`markdown`（默认）或 `json` |
@@ -268,10 +282,10 @@ cp docs/cv.md docs/cv_help.md docs/cv_debate.md ~/.claude/commands/
 #### 常用组合示例
 
 ```bash
-# 1. 最简用法：轻量盲审
+# 1. 最简用法：轻量验证
 cv-review --file docs/design.md
 
-# 2. 定向盲审
+# 2. 定向验证
 cv-review --file docs/design.md \
   --instruction "请逐条分析第三章中所有并发模型的潜在竞态条件与死锁风险"
 
@@ -297,14 +311,14 @@ cv-review --file README.md --verbose
 
 ---
 
-### 4.3 完整多轮闭环博弈详解（`/cv debate`）
+### 4.3 完整多轮闭环博弈详解（`/cv_debate`）
 
-这是 `cv-review` 的**高阶模式**，适合"只有原始需求、没有现成文档"的场景。在 Claude Code 中通过 `/cv debate` 进入**交互式向导**，无需记忆任何 CLI 参数。
+这是 `cv-review` 的**高阶模式**，适合"只有原始需求、没有现成文档"的场景。在 Claude Code 中通过 `/cv_debate` 进入**交互式向导**，无需记忆任何 CLI 参数。
 
 #### 交互流程（在 Claude Code 中）
 
 ```
-你：/cv debate docs/requirement.md
+你：/cv_debate docs/requirement.md
 
 Claude：📋 进入多轮闭环博弈模式。
        已定位文件：docs/requirement.md
@@ -347,13 +361,13 @@ Claude：━━━━━━━━━━━━━━━━━━━━━━━�
 第 0 步：architect（如 Kimi）读取需求 → 输出初稿
   │
   ▼
-第 1 轮：reviewer（如 DeepSeek）盲审初稿 → 指出漏洞
+第 1 轮：reviewer（如 DeepSeek）验证初稿 → 指出漏洞
   │
   ▼
 第 1 轮：architect 根据 reviewer 意见 → 修复并输出新版
   │
   ▼
-第 2 轮：reviewer 再次盲审新版 → 继续挑错
+第 2 轮：reviewer 再次验证新版 → 继续挑错
   │
   ▼
 第 2 轮：architect 再次修复...
@@ -365,9 +379,9 @@ Claude：━━━━━━━━━━━━━━━━━━━━━━━�
 输出：outputs/DESIGN_DOCUMENT.md（最终收敛文档）
 ```
 
-#### 与轻量盲审的区别
+#### 与轻量验证的区别
 
-| 维度 | 轻量盲审（默认） | 多轮博弈（`/cv debate`） |
+| 维度 | 轻量验证（默认） | 多轮博弈（`/cv_debate`） |
 | :--- | :--- | :--- |
 | **输入** | 已有文档 | 原始需求或初稿 |
 | **输出** | 评审意见文本 | 完整设计文档 |
@@ -393,7 +407,7 @@ Claude：━━━━━━━━━━━━━━━━━━━━━━━�
 
 ## 5. 自定义提示词（ prompts.txt ）
 
-`cv-review` 内置了两组角色提示词（`reviewer_system` 与 `architect_system`），分别用于**盲审**与**多轮博弈**场景。如果你希望调整评审风格（例如让 reviewer 更关注安全、让 architect 更关注性能），无需改动源码，直接修改个人配置即可。
+`cv-review` 内置了两组角色提示词（`reviewer_system` 与 `architect_system`），分别用于**交叉验证**与**多轮博弈**场景。如果你希望调整评审风格（例如让 reviewer 更关注安全、让 architect 更关注性能），无需改动源码，直接修改个人配置即可。
 
 ### 5.1 配置优先级
 
@@ -477,13 +491,13 @@ nano ~/.cv-review/prompts.txt
 
 你可能会有疑问："不就是一个单纯的第三方 API 独立审阅吗，为啥有两组提示词？"
 
-答案是：**你最常用、最核心的功能（轻量盲审）确实只用 `reviewer_system` 一组。** `architect_system` 是多轮博弈模式（`--mode debate`）的扩展，不是必需品。
+答案是：**你最常用、最核心的功能（轻量验证）确实只用 `reviewer_system` 一组。** `architect_system` 是多轮博弈模式（`--mode debate`）的扩展，不是必需品。
 
 | 维度 | `reviewer_system` | `architect_system` |
 | :--- | :--- | :--- |
 | **角色** | 外部评审专家（批判者） | 内部架构师（创作者） |
 | **任务** | 找漏洞、挑毛病、给出改进方向 | 写文档、修文档、保持逻辑自洽 |
-| **使用模式** | 轻量盲审（默认）+ debate 每轮评审 | 仅 debate 模式的写稿/改稿环节 |
+| **使用模式** | 轻量验证（默认）+ debate 每轮评审 | 仅 debate 模式的写稿/改稿环节 |
 | **是否必须** | ✅ 核心功能，必须有 | ⚪ 扩展功能，可忽略 |
 | **日常推荐度** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
 
@@ -503,7 +517,7 @@ nano ~/.cv-review/prompts.txt
 ## 6. 目录结构
 
 ```text
-cv-review/                      # 仓库根目录
+cross-validation/               # 本仓库根目录（git clone 后的本地目录）
 ├── pyproject.toml              # 标准 Python 包定义，注册 cv-review CLI 入口
 ├── README.md                   # 本文档
 ├── .gitignore                  # Git 忽略规则
@@ -512,8 +526,8 @@ cv-review/                      # 仓库根目录
 │       ├── __init__.py
 │       ├── cli.py              # argparse 主入口（init / review / debate）
 │       ├── config.py           # 配置加载器（~/.cv-review/ > 内置默认）
-│       ├── api.py              # OpenAI 兼容客户端封装
-│       ├── reviewer.py         # 评审逻辑（轻量盲审 + 多轮闭环）
+│       ├── api.py              # OpenAI / Anthropic 兼容客户端封装（适配器模式）
+│       ├── reviewer.py         # 验证逻辑（轻量验证 + 多轮闭环）
 │       └── config/             # 内置默认配置模板
 │           ├── api_settings.json
 │           └── prompts.txt
@@ -530,7 +544,7 @@ cv-review/                      # 仓库根目录
 
 ## 7. 架构与调用流程
 
-### 7.1 轻量盲审模式
+### 7.1 轻量验证模式
 
 ```
 用户输入
@@ -544,8 +558,8 @@ cv-review --file <path> [--instruction "xxx"]
   ├─→ reviewer.py 读取文件内容
   │       组装 user_prompt = 文件内容 + 定向指令
   │
-  ├─→ api.py 初始化 reviewer 通道客户端
-  │       （独立 API，与当前 CLI 上下文物理隔离）
+  ├─→ api.py 初始化 reviewer 通道客户端适配器
+  │       （支持 OpenAI / Anthropic 双格式，与当前 CLI 上下文完全隔离）
   │
   └─→ reviewer.py 调用 ask_agent()
           单次无状态调用，不携带任何历史上下文
@@ -560,12 +574,13 @@ cv-review --file <path> [--instruction "xxx"]
   ▼
 cv-review --file <path> --mode debate --rounds N
   │
-  ├─→ 初始化 architect + reviewer 双通道客户端
+  ├─→ 初始化 architect + reviewer 双通道客户端适配器
+  │       （支持 OpenAI / Anthropic 混合，如 Kimi + DeepSeek）
   │
   ├─→ 第 1 轮：architect 出初稿
   │
   ├─→ 第 1~N 轮循环：
-  │       reviewer 盲审 → 指出漏洞
+  │       reviewer 交叉验证 → 指出漏洞
   │       architect 修复 → 输出新版文档
   │
   └─→ 输出最终文档到 outputs/DESIGN_DOCUMENT.md
@@ -589,10 +604,10 @@ Claude Code CLI
 
 ## 8. 关键设计决策
 
-### 8.1 为什么使用独立进程 + 独立 API？
+### 8.1 为什么使用独立进程 + 独立模型？
 
-- **物理隔离**：`cv-review` 运行在独立 Python 进程中，每次请求只传递 system prompt + 当前文档，不携带 Claude Code 会话的任何历史上下文。
-- **盲审真实**：Reviewer 完全不知道作者是谁、也不知道当前对话的主题，只能基于文档本身进行批判。
+- **完全隔离**：`cv-review` 运行在独立 Python 进程中，每次请求只传递 system prompt + 当前文档，不携带 Claude Code 会话的任何历史上下文。
+- **客观独立**：Reviewer 完全不知道作者是谁、也不知道当前对话的主题，只能基于文档本身进行批判。
 - **成本可控**：轻量模式只调用一次 reviewer，响应快、Token 消耗最低。
 
 ### 8.2 为什么配置放在 `~/.cv-review/`？
@@ -610,6 +625,20 @@ Claude Code CLI
 ---
 
 ## 9. 变更记录
+
+### 2026-05-30 v0.3.0 智能意图模式与架构升级
+
+- **新增智能意图模式**：`/cv <自然语言请求>` 支持省略文件路径，系统自动扫描工程文件、聚合内容后提交交叉验证（上限 10 个文件 / 80KB）。
+- **底层 SDK 支持 Anthropic 格式**：解决 Kimi API（`https://api.kimi.com/coding/`）404 问题，实现 OpenAI / Anthropic 双 SDK 兼容。
+- **策略模式重构**：`api.py` 引入 `ApiClientAdapter` 抽象基类 + `OpenAIAdapter` + `AnthropicAdapter`，屏蔽 SDK 差异，扩展性大幅提升。
+- **重试粒度修复**：`@retry` 仅捕获网络瞬时错误（`RetryableError`），`ValueError` / `RuntimeError` 等业务异常直接抛出，避免无意义重试。
+- **边界条件全面加固**：
+  - 二进制文件拦截（`.png`、`.zip` 等 20+ 种扩展名）
+  - 文件大小限制（100 KB）与内容长度截断（50K 字符）
+  - `config.py` 增加 `api_format` 合法性校验与空 section 跳过
+  - `cli.py` Windows 编码处理线程安全（`reconfigure` 优先）
+- **路径判断鲁棒性增强**：支持混合斜杠、盘符大小写不敏感、`.` / `..` 目录，路径特征规则覆盖 28 种扩展名。
+- **README 同步更新**：使用模式新增模式 D（智能意图）、API 通道表格增加 `api_format`、架构图更新为双格式支持。
 
 ### 2026-05-29 v0.2.4 命令命名标准化
 
@@ -629,7 +658,7 @@ Claude Code CLI
 
 - **重写 `/cv` Slash Command**：`docs/cv.md` 全面重构，支持三种模式：
   - **帮助模式**：`/cv help` 展示完整用法、路径格式说明与前置配置清单。
-  - **轻量盲审模式**（默认）：`/cv <文件> [定向指令]`，增加路径不存在时的友好错误提示与跨平台路径兼容性处理。
+  - **轻量验证模式**（默认）：`/cv <文件> [定向指令]`，增加路径不存在时的友好错误提示与跨平台路径兼容性处理。
   - **Debate 交互向导模式**：`/cv debate [<文件>]`，进入交互式问答流程，依次询问轮数、输出目录、定向关注点，无需记忆任何 CLI 参数。
 - **路径兼容性**：明确支持 Windows（`/`、`\`、绝对路径含盘符）、Linux、macOS 及相对路径；路径验证失败时向用户报告具体原因并请求重新输入。
 - **README 同步更新**：第 4 章使用模式新增"模式 E：查看帮助"与"路径兼容性说明"表格；第 4.3 节 debate 详解补充交互流程示例。
@@ -639,7 +668,7 @@ Claude Code CLI
 - **架构升级**：从手动运行 `python run_debate.py` 升级为全局 CLI 命令 `cv-review`。
 - **包化重构**：工程重构为标准 Python 包（`pyproject.toml` + `src/cv_review/`）。
 - **配置解耦**：支持用户级 `~/.cv-review/` 与内置默认模板的层级覆盖。
-- **定向盲审**：新增 `--instruction` 参数，支持聚焦特定章节的精准评审。
+- **定向验证**：新增 `--instruction` 参数，支持聚焦特定章节的精准验证。
 - **Claude Code 集成**：新增全局 `/cv` Slash Command，任意目录可用。
 - **旧体系清理**：彻底卸载 CVDebate MCP Server 及 `/algo-*` 命令。
 - **单元测试**：新增 `tests/test_config.py`，覆盖配置加载与路径优先级。
