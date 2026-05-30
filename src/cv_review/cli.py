@@ -83,6 +83,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "-r", "--rounds",
         type=int,
         default=2,
+        metavar="N",
         help="debate 模式下的迭代轮数，默认 2。",
     )
     parser.add_argument(

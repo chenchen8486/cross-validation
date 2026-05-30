@@ -200,7 +200,7 @@ def init_api_client(channel_config: dict[str, Any]) -> tuple[ApiClientAdapter, s
             from anthropic import Anthropic
         except ImportError as exc:
             raise RuntimeError(
-                "当前通道需要 anthropic SDK，请执行 `pip install anthropic` 安装。"
+                "当前通道需要 anthropic SDK，请执行 `pip install cv-review[anthropic]` 安装。"
             ) from exc
         try:
             raw_client = Anthropic(api_key=api_key, base_url=base_url)

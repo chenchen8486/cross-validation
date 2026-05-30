@@ -7,6 +7,7 @@
 配置优先级：用户级目录 ``~/.cv-review/`` > 包内内置默认模板。
 """
 
+import functools
 import json
 import logging
 import shutil
@@ -154,6 +155,12 @@ def _validate_api_settings(data: dict[str, Any]) -> None:
                 raise RuntimeError(
                     f"channels['{name}'] 缺少必需字段 '{k}'"
                 )
+        if "api_key" in cfg:
+            logger.warning(
+                "channels['%s'] 包含 'api_key' 字段，该字段将被忽略。"
+                "请使用 'api_key_env' 指定环境变量名，并将 API Key 存储在环境变量中。",
+                name,
+            )
         api_format = cfg.get("api_format", "openai")
         if api_format not in ("openai", "anthropic"):
             raise RuntimeError(
@@ -174,6 +181,7 @@ def _validate_api_settings(data: dict[str, Any]) -> None:
         )
 
 
+@functools.lru_cache(maxsize=1)
 def load_api_settings() -> dict[str, Any]:
     """加载 ``api_settings.json``，返回完整的 API 通道与路由配置。
 
@@ -197,6 +205,7 @@ def load_api_settings() -> dict[str, Any]:
     return data
 
 
+@functools.lru_cache(maxsize=1)
 def load_prompts() -> dict[str, str]:
     """解析 ``prompts.txt``，返回角色 System Prompt 字典。
 

@@ -23,11 +23,33 @@ BINARY_EXTENSIONS: set[str] = {
     ".rar", ".exe", ".dll", ".so", ".dylib", ".bin", ".dat",
 }
 
+# 应被排除的目录名片段
+IGNORED_DIR_SEGMENTS: set[str] = {
+    "__pycache__", "node_modules", ".git", ".venv", "venv",
+    "build", "dist", ".pytest_cache", ".idea", ".vscode",
+}
+
+
 # 文件大小限制：100 KB（超出则拒绝，防止 Token 超限和成本失控）
 MAX_FILE_SIZE = 100 * 1024
 
 # 内容长度限制：50,000 字符（约 12K tokens）
 MAX_CHARS = 50000
+
+
+def _should_ignore(path: Path) -> bool:
+    """判断路径是否应被排除（如缓存、依赖、版本控制目录）。
+
+    Args:
+        path: 待检查的文件或目录路径。
+
+    Returns:
+        bool: 若路径包含被排除的目录片段，则返回 True。
+    """
+    for part in path.parts:
+        if part.lower() in IGNORED_DIR_SEGMENTS:
+            return True
+    return False
 
 
 def _check_file(path: Path) -> str:
@@ -43,6 +65,9 @@ def _check_file(path: Path) -> str:
         ValueError: 文件为空、仅含空白、为二进制文件或过大。
         RuntimeError: 读取失败。
     """
+    if _should_ignore(path):
+        raise ValueError(f"路径位于被排除的目录中: {path}")
+
     suffix = path.suffix.lower()
     if suffix in BINARY_EXTENSIONS:
         raise ValueError(f"不支持评审二进制文件 [{path.suffix}]: {path}")
@@ -252,11 +277,19 @@ def debate(
             max_rounds,
             rev_model,
         )
+        reviewer_prompt_parts = [
+            "请盲审以下技术文档，直接指出其中的漏洞与不合理之处。",
+        ]
+        if instruction:
+            reviewer_prompt_parts.append(f"\n【用户定向关注点】\n{instruction}")
+        reviewer_prompt_parts.append(f"\n\n【待评审文档内容】\n\n{current_doc}")
+        reviewer_prompt = "\n".join(reviewer_prompt_parts)
+
         feedback = ask_agent(
             adapter_rev,
             rev_model,
             prompts.get("reviewer_system", ""),
-            f"请盲审以下技术文档，直接指出其中的漏洞与不合理之处：\n\n{current_doc}",
+            reviewer_prompt,
             temperature,
         )
 

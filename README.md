@@ -121,6 +121,8 @@ echo $KIMI_API_KEY
 echo $DEEPSEEK_API_KEY
 ```
 
+> **⚠️ 安全警告：** `~/.cv-review/api_settings.json` 文件**仅用于配置环境变量名**，**绝不要**将 API Key 的明文值写入此文件。请始终通过环境变量来管理你的密钥，避免意外提交到版本控制导致泄露。
+
 **macOS / Linux（持久化到 shell 配置文件）**：
 
 ```bash
@@ -139,6 +141,10 @@ source ~/.bashrc
 | DeepSeek | `https://api.deepseek.com` | `DEEPSEEK_API_KEY` | `deepseek-chat` | `openai` |
 
 如需接入其他模型（OpenAI、Claude、GLM 等），在配置文件 `api_settings.json` 中新增通道时，需指定对应的 `api_format`（`openai` 或 `anthropic`）。
+
+> 如需使用 Kimi（`anthropic` 格式），请确保已安装 Anthropic 支持：> ```bash
+> pip install cv-review[anthropic]
+> ```
 
 ### 3.6 Claude Code CLI 集成（推荐使用）
 

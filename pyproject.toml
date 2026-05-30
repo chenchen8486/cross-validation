@@ -16,12 +16,14 @@ keywords = ["cross-validation", "review", "llm", "blind-audit", "cli"]
 dependencies = [
     "openai>=1.0",
     "tenacity>=8.0",
-    "anthropic>=0.25",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
+]
+anthropic = [
+    "anthropic>=0.25",
 ]
 
 [project.scripts]
