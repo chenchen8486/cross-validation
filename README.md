@@ -104,32 +104,41 @@ cv-review init
 
 ### 3.4 API Key 配置
 
-本工具依赖两个独立的外部 API 通道（architect 与 reviewer），你需要分别配置对应的环境变量。
+本项目**只支持 `.env` 文件方式**配置 API Key，统一、安全、不污染代码仓库。
 
-**Windows（持久化到用户环境变量）**：
+#### 步骤：创建 `.env` 文件
 
-```powershell
-# PowerShell
-[Environment]::SetEnvironmentVariable('KIMI_API_KEY', 'sk-你的-Kimi-Key', 'User')
-[Environment]::SetEnvironmentVariable('DEEPSEEK_API_KEY', 'sk-你的-DeepSeek-Key', 'User')
-```
-
-配置完成后，**重新打开终端**使变量生效。验证：
+在项目根目录新建 `.env` 文件：
 
 ```bash
-echo $KIMI_API_KEY
-echo $DEEPSEEK_API_KEY
+# Windows
+notepad .env
+
+# Linux / macOS
+touch .env
 ```
 
-> **⚠️ 安全警告：** `~/.cv-review/api_settings.json` 文件**仅用于配置环境变量名**，**绝不要**将 API Key 的明文值写入此文件。请始终通过环境变量来管理你的密钥，避免意外提交到版本控制导致泄露。
+写入你的 API Key：
 
-**macOS / Linux（持久化到 shell 配置文件）**：
+```text
+ANTHROPIC_AUTH_TOKEN=sk-你的-Kimi-Key
+DEEPSEEK_API_KEY=sk-你的-DeepSeek-Key
+```
+
+> `.env` 文件已默认加入 `.gitignore`，可放心放在项目目录中，**不会误提交到 Git**。
+
+程序启动时会自动读取该文件并加载为环境变量，无需手动 `export`。
+
+#### 团队 / CI 场景
+
+若需在 CI 流水线或无 `.env` 文件的环境中运行，直接在系统环境变量中配置同名变量即可：
 
 ```bash
-echo 'export KIMI_API_KEY="sk-你的-Kimi-Key"' >> ~/.bashrc
-echo 'export DEEPSEEK_API_KEY="sk-你的-DeepSeek-Key"' >> ~/.bashrc
-source ~/.bashrc
+export ANTHROPIC_AUTH_TOKEN="sk-xxx"
+export DEEPSEEK_API_KEY="sk-xxx"
 ```
+
+> **⚠️ 安全提示**：**绝不要将 API Key 明文写入项目源码或提交到 Git**。`api_settings.json` 中不支持直接填写 `api_key`，必须通过 `api_key_env` 指定环境变量名。
 
 ### 3.5 支持的 API 通道
 
@@ -137,12 +146,13 @@ source ~/.bashrc
 
 | 通道 | 基础地址 | 环境变量 | 默认模型 | API 格式 |
 | :--- | :--- | :--- | :--- | :--- |
-| Kimi | `https://api.kimi.com/coding/` | `KIMI_API_KEY` | `kimi-k2.6` | `anthropic` |
+| Kimi | `https://api.kimi.com/coding/` | `ANTHROPIC_AUTH_TOKEN` | `kimi-k2.6` | `anthropic` |
 | DeepSeek | `https://api.deepseek.com` | `DEEPSEEK_API_KEY` | `deepseek-chat` | `openai` |
 
 如需接入其他模型（OpenAI、Claude、GLM 等），在配置文件 `api_settings.json` 中新增通道时，需指定对应的 `api_format`（`openai` 或 `anthropic`）。
 
-> 如需使用 Kimi（`anthropic` 格式），请确保已安装 Anthropic 支持：> ```bash
+> 如需使用 Anthropic 格式（如 Claude API），请确保已安装 Anthropic 支持：
+> ```bash
 > pip install cv-review[anthropic]
 > ```
 
@@ -218,7 +228,7 @@ cp docs/cv.md docs/cv_help.md docs/cv_debate.md ~/.claude/commands/
 
 - **不指定文件路径**，直接输入自然语言请求。
 - `/cv` 会自动识别意图，扫描工程中的相关文件（代码、文档或两者），聚合成临时文档后提交交叉验证。
-- 自动排除测试目录、缓存目录和依赖目录，扫描上限为 10 个文件，聚合内容上限约 80KB。
+- 自动排除测试目录、缓存目录和依赖目录，文件扫描数量与聚合大小由系统自动判断，无固定上限。
 - 评审完成后会提示："如需针对单个文件深度审查，请使用 `/cv <文件路径>`。"
 
 #### 模式 E：多轮闭环博弈（深度生成）
@@ -538,12 +548,13 @@ cross-validation/               # 本仓库根目录（git clone 后的本地目
 │           ├── api_settings.json
 │           └── prompts.txt
 ├── tests/
-│   └── test_config.py          # 单元测试（配置加载与路径优先级）
+│   ├── test_api.py             # API 客户端与重试策略测试
+│   ├── test_config.py          # 配置加载与路径优先级测试
+│   └── test_reviewer.py        # 评审逻辑与输出格式测试
 └── docs/
     ├── cv.md                   # Claude Code Slash Command `/cv` 定义文件
     ├── cv_help.md              # Claude Code Slash Command `/cv_help` 定义文件
-    ├── cv_debate.md            # Claude Code Slash Command `/cv_debate` 定义文件
-    └── plan.md                 # 重构计划文档
+    └── cv_debate.md            # Claude Code Slash Command `/cv_debate` 定义文件
 ```
 
 ---
@@ -634,13 +645,13 @@ Claude Code CLI
 
 ### 2026-05-30 v0.3.0 智能意图模式与架构升级
 
-- **新增智能意图模式**：`/cv <自然语言请求>` 支持省略文件路径，系统自动扫描工程文件、聚合内容后提交交叉验证（上限 10 个文件 / 80KB）。
+- **新增智能意图模式**：`/cv <自然语言请求>` 支持省略文件路径，系统自动扫描工程文件、聚合内容后提交交叉验证。
 - **底层 SDK 支持 Anthropic 格式**：解决 Kimi API（`https://api.kimi.com/coding/`）404 问题，实现 OpenAI / Anthropic 双 SDK 兼容。
 - **策略模式重构**：`api.py` 引入 `ApiClientAdapter` 抽象基类 + `OpenAIAdapter` + `AnthropicAdapter`，屏蔽 SDK 差异，扩展性大幅提升。
 - **重试粒度修复**：`@retry` 仅捕获网络瞬时错误（`RetryableError`），`ValueError` / `RuntimeError` 等业务异常直接抛出，避免无意义重试。
 - **边界条件全面加固**：
   - 二进制文件拦截（`.png`、`.zip` 等 20+ 种扩展名）
-  - 文件大小限制（100 KB）与内容长度截断（50K 字符）
+  - 文件大小限制（1 MB）与内容长度截断（300K 字符）
   - `config.py` 增加 `api_format` 合法性校验与空 section 跳过
   - `cli.py` Windows 编码处理线程安全（`reconfigure` 优先）
 - **路径判断鲁棒性增强**：支持混合斜杠、盘符大小写不敏感、`.` / `..` 目录，路径特征规则覆盖 28 种扩展名。

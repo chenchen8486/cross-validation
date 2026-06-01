@@ -167,29 +167,37 @@ def _mask_key(key: str) -> str:
 def init_api_client(channel_config: dict[str, Any]) -> tuple[ApiClientAdapter, str]:
     """根据通道配置初始化对应的 API 客户端适配器。
 
+    API Key 统一通过环境变量读取（由 ``python-dotenv`` 自动加载 ``.env`` 文件
+    到环境变量）。禁止在配置文件中直接写入明文密钥。
+
     Args:
         channel_config: 单个通道的字典，至少包含：
             - ``base_url``: API 基础地址。
-            - ``api_key_env``: 存储 API Key 的环境变量名。
             - ``model_name``: 请求时使用的模型名。
+            - ``api_key_env``: 环境变量名（必填）。
             - ``api_format``: API 格式，``openai``（默认）或 ``anthropic``。
 
     Returns:
         tuple: ``(适配器实例, 模型名称字符串)``
 
     Raises:
-        RuntimeError: 环境变量未配置、缺少依赖或客户端初始化失败。
+        RuntimeError: 缺少 API Key、依赖未安装或客户端初始化失败。
     """
     api_format = channel_config.get("api_format", "openai")
+
     api_key_env = channel_config.get("api_key_env")
     if not api_key_env:
-        raise RuntimeError("通道配置缺少必需字段: api_key_env")
+        raise RuntimeError(
+            "通道配置缺少 'api_key_env' 字段，"
+            "请在 api_settings.json 中设置环境变量名。"
+        )
 
     api_key = os.environ.get(api_key_env)
     if not api_key:
         raise RuntimeError(
             f"未检测到环境变量 [{api_key_env}]，"
-            f"请在 Shell 中配置该变量后再试。"
+            f"请在项目根目录创建 .env 文件并写入 [{api_key_env}=sk-xxx]，"
+            f"或在系统环境变量中配置该变量后再试。"
         )
 
     base_url = channel_config.get("base_url", "")
@@ -250,7 +258,7 @@ def ask_agent(
     system_prompt: str,
     user_content: str,
     temperature: float,
-    timeout: int = 120,
+    timeout: int = 300,
 ) -> str:
     """向指定模型发起单次无状态对话请求。
 
@@ -267,7 +275,7 @@ def ask_agent(
         system_prompt: 系统级角色设定文本。
         user_content: 当前轮次的用户输入内容。
         temperature: 采样温度，控制输出的随机性。
-        timeout: 请求超时时间（秒），默认 120。
+        timeout: 请求超时时间（秒），默认 300。
 
     Returns:
         str: 模型生成的文本内容。

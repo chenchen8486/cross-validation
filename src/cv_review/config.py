@@ -10,23 +10,41 @@
 import functools
 import json
 import logging
+import os
 import shutil
 from pathlib import Path
 from typing import Any
 
-from importlib import resources as pkg_resources
+from importlib.resources import files
 
-try:
-    # Python 3.9+ 推荐方式
-    from importlib.resources import files
-except ImportError:  # pragma: no cover
-    files = None  # type: ignore[assignment]
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
 
 DEFAULT_CONFIG_DIR_NAME = ".cv-review"
 CONFIG_FILES = ("api_settings.json", "prompts.txt")
+
+
+def _load_dotenv_files() -> None:
+    """自动加载 ``.env`` 文件到环境变量。
+
+    加载顺序（后加载的优先级更高，可覆盖前者）：
+    1. ``~/.cv-review/.env``（用户级全局配置）
+    2. 当前工作目录下的 ``.env``（项目级配置）
+
+    """
+    # 用户级 .env
+    user_env = _get_user_config_dir() / ".env"
+    if user_env.exists():
+        load_dotenv(str(user_env), override=False)
+        logger.debug("已加载用户级 .env: %s", user_env)
+
+    # 项目级 .env（当前工作目录）
+    cwd_env = Path(".env").resolve()
+    if cwd_env.exists():
+        load_dotenv(str(cwd_env), override=True)
+        logger.debug("已加载项目级 .env: %s", cwd_env)
 
 
 def _get_user_config_dir() -> Path:
@@ -44,16 +62,14 @@ def _get_builtin_config_dir() -> Path:
     Returns:
         Path: 指向 ``cv_review.config`` 包内 ``config/`` 子目录的路径。
     """
-    if files is not None:
-        return Path(str(files("cv_review") / "config"))
-    # 降级方案：基于本文件位置推导
-    return Path(__file__).resolve().parent / "config"
+    return Path(str(files("cv_review") / "config"))
 
 
-def init_user_config() -> Path:
+def init_user_config(force: bool = False) -> Path:
     """将内置默认配置模板复制到用户家目录，生成 ``~/.cv-review/``。
 
-    若目标目录已存在，则跳过创建，避免覆盖用户已有配置。
+    Args:
+        force: 若为 True，则强制覆盖已有配置文件。
 
     Returns:
         Path: 用户级配置目录路径。
@@ -71,13 +87,21 @@ def init_user_config() -> Path:
     for filename in CONFIG_FILES:
         src = builtin_dir / filename
         dst = user_dir / filename
-        if not dst.exists() and src.exists():
+        if src.exists() and (not dst.exists() or force):
             try:
                 shutil.copy2(str(src), str(dst))
-                logger.info("已复制默认配置模板: %s", dst)
+                action = "强制覆盖" if force and dst.exists() else "复制"
+                logger.info("已%s配置模板: %s", action, dst)
             except OSError as exc:
                 logger.error("复制配置文件失败 [%s]: %s", filename, exc)
                 raise RuntimeError(f"复制配置文件失败 [{filename}]: {exc}") from exc
+        elif dst.exists() and force and not src.exists():
+            try:
+                dst.unlink()
+                logger.info("已删除用户配置（内置模板已移除）: %s", dst)
+            except OSError as exc:
+                logger.error("删除用户配置失败 [%s]: %s", filename, exc)
+                raise RuntimeError(f"删除用户配置失败 [{filename}]: {exc}") from exc
         elif dst.exists():
             logger.debug("用户配置已存在，跳过: %s", dst)
 
@@ -146,7 +170,7 @@ def _validate_api_settings(data: dict[str, Any]) -> None:
                 f"runtime_routing['{key}'] = '{channel_name}' 在 channels 中找不到对应配置"
             )
 
-    required_channel_keys = ("base_url", "api_key_env", "model_name")
+    required_channel_keys = ("base_url", "model_name")
     for name, cfg in channels.items():
         if not isinstance(cfg, dict):
             raise RuntimeError(f"channels['{name}'] 必须是对象")
@@ -155,11 +179,9 @@ def _validate_api_settings(data: dict[str, Any]) -> None:
                 raise RuntimeError(
                     f"channels['{name}'] 缺少必需字段 '{k}'"
                 )
-        if "api_key" in cfg:
-            logger.warning(
-                "channels['%s'] 包含 'api_key' 字段，该字段将被忽略。"
-                "请使用 'api_key_env' 指定环境变量名，并将 API Key 存储在环境变量中。",
-                name,
+        if not cfg.get("api_key_env"):
+            raise RuntimeError(
+                f"channels['{name}'] 缺少必需字段 'api_key_env'"
             )
         api_format = cfg.get("api_format", "openai")
         if api_format not in ("openai", "anthropic"):
@@ -249,3 +271,7 @@ def load_prompts() -> dict[str, str]:
         raise RuntimeError(f"Prompt 配置文件 [{path}] 为空或格式无效")
 
     return prompts
+
+
+# 模块初始化时自动加载 .env 文件
+_load_dotenv_files()

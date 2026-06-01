@@ -1,18 +1,21 @@
 {
+  "_comment": "配置说明：1. 所有 API Key 均通过 .env 文件配置（项目根目录或 ~/.cv-review/.env），不支持直接在此文件写密钥。2. 每个通道需配置 api_key_env（环境变量名），程序会自动从 .env 或系统环境变量读取。3. api_format 可选 openai 或 anthropic。",
   "channels": {
     "kimi": {
-      "base_url": "[https://api.moonshot.cn/v1](https://api.moonshot.cn/v1)",
-      "api_key_env": "MOONSHOT_API_KEY",
-      "model_name": "moonshot-v1-8k"
+      "base_url": "https://api.kimi.com/coding/",
+      "api_key_env": "ANTHROPIC_AUTH_TOKEN",
+      "model_name": "kimi-k2.6",
+      "api_format": "anthropic"
     },
     "deepseek": {
-      "base_url": "[https://api.deepseek.com/v1](https://api.deepseek.com/v1)",
+      "base_url": "https://api.deepseek.com",
       "api_key_env": "DEEPSEEK_API_KEY",
-      "model_name": "deepseek-chat"
+      "model_name": "deepseek-chat",
+      "api_format": "openai"
     }
   },
   "runtime_routing": {
-    "max_rounds": 2,
+    "max_rounds": 3,
     "temperature": 0.3,
     "architect_channel": "kimi",
     "reviewer_channel": "deepseek"

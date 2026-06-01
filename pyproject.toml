@@ -16,6 +16,7 @@ keywords = ["cross-validation", "review", "llm", "blind-audit", "cli"]
 dependencies = [
     "openai>=1.0",
     "tenacity>=8.0",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]

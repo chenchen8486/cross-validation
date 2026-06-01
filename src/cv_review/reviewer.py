@@ -30,11 +30,11 @@ IGNORED_DIR_SEGMENTS: set[str] = {
 }
 
 
-# 文件大小限制：100 KB（超出则拒绝，防止 Token 超限和成本失控）
-MAX_FILE_SIZE = 100 * 1024
+# 文件大小限制：1 MB（超出则拒绝，防止误传日志/数据等超大文件）
+MAX_FILE_SIZE = 1024 * 1024
 
-# 内容长度限制：50,000 字符（约 12K tokens）
-MAX_CHARS = 50000
+# 内容长度限制：300,000 字符（约 75K tokens，适配主流长上下文模型）
+MAX_CHARS = 300000
 
 
 def _should_ignore(path: Path) -> bool:

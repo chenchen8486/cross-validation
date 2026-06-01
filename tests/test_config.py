@@ -107,3 +107,40 @@ class TestLoadPrompts:
         finally:
             monkeypatch.undo()
             Path(tmp_path).unlink()
+
+
+class TestValidateApiSettings:
+    """测试 ``_validate_api_settings()`` 的字段校验逻辑。"""
+
+    def setup_method(self):
+        """每个测试前清除配置加载缓存，避免 lru_cache 导致测试隔离失效。"""
+        config.load_api_settings.cache_clear()
+        config.load_prompts.cache_clear()
+
+    def _make_valid(self) -> dict:
+        """构造一个最小合法的 api_settings 字典。"""
+        return {
+            "channels": {
+                "deepseek": {
+                    "base_url": "https://api.deepseek.com",
+                    "api_key_env": "DEEPSEEK_API_KEY",
+                    "model_name": "deepseek-chat",
+                }
+            },
+            "runtime_routing": {
+                "architect_channel": "deepseek",
+                "reviewer_channel": "deepseek",
+            },
+        }
+
+    def test_accepts_api_key_env(self):
+        """配置 ``api_key_env`` 时应通过校验。"""
+        data = self._make_valid()
+        config._validate_api_settings(data)
+
+    def test_rejects_missing_api_key_env(self):
+        """缺少 ``api_key_env`` 时应报错。"""
+        data = self._make_valid()
+        del data["channels"]["deepseek"]["api_key_env"]
+        with pytest.raises(RuntimeError, match="缺少必需字段 'api_key_env'"):
+            config._validate_api_settings(data)

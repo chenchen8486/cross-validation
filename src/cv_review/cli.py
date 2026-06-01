@@ -130,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.command == "init":
-            config_dir = init_user_config()
+            config_dir = init_user_config(force=args.force)
             print(f"[+] 配置模板已生成: {config_dir}")
             print("    请编辑该目录下的 api_settings.json 与 prompts.txt，")
             print("    并确保 Shell 环境变量中已配置对应 API Key。")
