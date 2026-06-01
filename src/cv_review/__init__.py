@@ -5,4 +5,4 @@
 """
 
 __version__ = "0.2.0"
-__all__ = ["config", "api", "reviewer", "cli"]
+__all__ = ["config", "api", "reviewer", "cli", "setup_claude", "doctor"]

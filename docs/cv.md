@@ -8,6 +8,8 @@ argument-hint: [用户请求] | help
 
 通过外部独立 API（如 DeepSeek / Kimi）对技术内容进行盲审，评审结果与当前 Claude Code 会话物理隔离，解决单一 AI 模型长期使用导致的记忆衰退与注意力分散问题，实现真正的交叉验证。
 
+**语言约束**：请在本命令的全部交互过程中优先使用中文，包括步骤说明、错误提示和最终展示给用户的文本。
+
 **核心设计原则**：
 
 - 加不加 `/cv`，Claude 理解用户请求、获取工程上下文的方式**完全一致**。
@@ -107,15 +109,19 @@ Claude 自行决定读取范围。如果用户明确提到了某个文件路径�
 在调用底层 CLI 之前，使用 `Bash` 验证 `cv-review` 是否可用：
 
 ```bash
-cv-review --version 2>/dev/null || echo "NOT_FOUND"
+cv-review --help > /dev/null 2>&1 || echo "NOT_FOUND"
 ```
 
 - **如果输出包含 `NOT_FOUND` 或返回命令未找到错误**：
   向用户展示：
   ```
-  未检测到 cv-review 命令。请先执行以下命令安装：
-     pip install -e .
-  并确保安装目录的 Scripts/ 或 bin/ 已在系统 PATH 中。
+  未检测到 cv-review 命令。可能的原因：
+    1. 未在虚拟环境中安装：pip install -e ".[dev,anthropic]"
+    2. 虚拟环境未激活（如 conda activate Chen）
+    3. 安装目录的 Scripts/ 或 bin/ 未加入系统 PATH
+
+  请先在项目根目录执行以下诊断命令定位问题：
+     cv-review doctor
   ```
   停止执行。
 

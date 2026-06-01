@@ -11,6 +11,7 @@ import logging
 import sys
 from pathlib import Path
 
+from cv_review import __version__
 from cv_review.config import init_user_config
 from cv_review.reviewer import review, debate
 
@@ -43,6 +44,12 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="显示版本号并退出。",
+    )
+    parser.add_argument(
         "-v", "--verbose",
         action="store_true",
         help="启用详细日志输出（DEBUG 级别）。",
@@ -59,6 +66,23 @@ def _build_parser() -> argparse.ArgumentParser:
         "--force",
         action="store_true",
         help="强制覆盖已有配置文件。",
+    )
+
+    # setup-claude 子命令
+    setup_parser = subparsers.add_parser(
+        "setup-claude",
+        help="将 /cv 系列 Slash Command 部署到 ~/.claude/commands/。",
+    )
+    setup_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="强制覆盖已有命令定义文件。",
+    )
+
+    # doctor 子命令
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help="一键诊断环境：检查 CLI、Slash Command、配置、API Key 等。",
     )
 
     # 评审参数（主命令默认行为）
@@ -135,6 +159,21 @@ def main(argv: list[str] | None = None) -> int:
             print("    请编辑该目录下的 api_settings.json 与 prompts.txt，")
             print("    并确保 Shell 环境变量中已配置对应 API Key。")
             return 0
+
+        if args.command == "setup-claude":
+            from cv_review.setup_claude import deploy_slash_commands
+
+            target_dir = deploy_slash_commands(force=args.force)
+            print(f"[+] Slash Command 已部署到: {target_dir}")
+            print("    请完全退出并重新启动 Claude Code CLI，")
+            print("    重启后输入 / 即可看到 /cv、/cv_help、/cv_debate 三个命令。")
+            return 0
+
+        if args.command == "doctor":
+            from cv_review.doctor import run_diagnosis
+
+            exit_code = run_diagnosis()
+            return exit_code
 
         if not args.file:
             parser.print_help()

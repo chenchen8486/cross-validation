@@ -66,13 +66,16 @@ AI 信誓旦旦地表示逻辑自洽、考虑周全。你也挑不出毛病。
 ```bash
 git clone https://github.com/your-org/cv-review.git
 cd cv-review
-pip install -e .
-cv-review init
+pip install -e ".[dev,anthropic]"
+cv-review init                 # 生成 ~/.cv-review/ 配置模板
+cv-review setup-claude         # 一键部署 /cv 系列 Slash Command
+cv-review doctor               # 诊断环境，确认全部就绪
+```
 
-# 验证安装（底层 CLI）
-cv-review --file README.md
+然后在项目根目录创建 `.env` 并写入你的 API Key（详见 2.4 节），**重启 Claude Code CLI**，即可在任意工程使用：
 
-# 或在 Claude Code 中直接使用推荐方式：/cv README.md
+```bash
+/cv README.md
 ```
 
 ---
@@ -179,7 +182,17 @@ cv-review --file README.md
 
 ### 2.6 Claude Code CLI 集成（推荐使用）
 
-将 `/cv` 系列命令部署到 Claude Code：
+#### 一键部署（推荐）
+
+```bash
+cv-review setup-claude
+```
+
+该命令会自动将 `docs/cv*.md` 复制到 `~/.claude/commands/`，无需手动操作。
+
+#### 手动部署（备用）
+
+若一键部署失败，可手动复制：
 
 ```bash
 # 所有平台通用（Windows Git Bash / WSL / macOS / Linux）
@@ -194,7 +207,24 @@ cp docs/cv.md docs/cv_help.md docs/cv_debate.md ~/.claude/commands/
 > copy "docs\cv_debate.md" "%USERPROFILE%\.claude\commands\"
 > ```
 
-重启 Claude Code CLI 后，输入 `/` 即可看到 `/cv`、`/cv_help`、`/cv_debate` 三个命令。
+#### 重启生效
+
+**完全退出并重新启动 Claude Code CLI**（不是刷新窗口），重启后输入 `/` 即可看到 `/cv`、`/cv_help`、`/cv_debate` 三个命令。
+
+#### 环境诊断
+
+部署后运行以下命令，一键检测所有前置条件是否就绪：
+
+```bash
+cv-review doctor
+```
+
+诊断项包括：
+- `cv-review` 是否在 PATH 中可用
+- Slash Command 文件是否已部署
+- `~/.cv-review/` 配置目录是否存在
+- `.env` 及 API Key 环境变量是否配置
+- `api_settings.json` 结构是否有效
 
 ---
 
