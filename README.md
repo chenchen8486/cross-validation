@@ -436,6 +436,18 @@ Claude：━━━━━━━━━━━━━━━━━━━━━━━�
 `cv-review` 是 `/cv` 和 `/cv_debate` 的底层引擎，任何终端均可独立调用。完整参数请运行 `cv-review --help` 查看。
 
 ```bash
+# 查看版本
+cv-review --version
+
+# 初始化配置模板
+cv-review init
+
+# 部署 Slash Command
+cv-review setup-claude
+
+# 环境诊断
+cv-review doctor
+
 # 轻量验证
 cv-review --file docs/design.md
 
@@ -573,17 +585,21 @@ cross-validation/               # 本仓库根目录（git clone 后的本地目
 ├── src/
 │   └── cv_review/              # 主包
 │       ├── __init__.py
-│       ├── cli.py              # argparse 主入口（init / review / debate）
+│       ├── cli.py              # argparse 主入口（init / review / debate / setup-claude / doctor）
 │       ├── config.py           # 配置加载器（~/.cv-review/ > 内置默认）
 │       ├── api.py              # OpenAI / Anthropic 兼容客户端封装（适配器模式）
 │       ├── reviewer.py         # 验证逻辑（轻量验证 + 多轮闭环）
+│       ├── setup_claude.py     # Slash Command 自动部署到 ~/.claude/commands/
+│       ├── doctor.py           # 一键环境诊断（CLI / 配置 / API Key）
 │       └── config/             # 内置默认配置模板
 │           ├── api_settings.json
 │           └── prompts.txt
 ├── tests/
 │   ├── test_api.py             # API 客户端与重试策略测试
 │   ├── test_config.py          # 配置加载与路径优先级测试
-│   └── test_reviewer.py        # 评审逻辑与输出格式测试
+│   ├── test_reviewer.py        # 评审逻辑与输出格式测试
+│   ├── test_setup_claude.py    # Slash Command 部署逻辑测试
+│   └── test_doctor.py          # 环境诊断逻辑测试
 └── docs/
     ├── cv.md                   # Claude Code Slash Command `/cv` 定义文件
     ├── cv_help.md              # Claude Code Slash Command `/cv_help` 定义文件
