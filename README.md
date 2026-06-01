@@ -1,4 +1,4 @@
-# cv-review：文档交叉验证工具
+﻿# cv-review：文档交叉验证工具
 
 > **cv-review** 首先是一个**命令**——安装后你在终端输入 `cv-review --file 文档.md`，它就会调用独立模型做交叉验证。
 > 
@@ -12,9 +12,7 @@ cv-review 的核心价值很简单：**用另一个模型来验证当前模型�
 
 同时提供 **Claude Code CLI 全局 Slash Command `/cv`**，支持在任意工程目录下对任意文档进行轻量或深度验证，无需关心源码位置。
 
----
 
-## 1. 为什么需要交叉验证？
 
 假设 AI 刚帮你起草了一份《登录模块设计》，文件保存在 `docs/login-module.md`，核心内容如下：
 
@@ -63,26 +61,30 @@ AI 信誓旦旦地表示逻辑自洽、考虑周全。你也挑不出毛病。
 
 ---
 
-## 2. 快速开始
+## 1. 快速开始
 
 ```bash
 git clone https://github.com/your-org/cv-review.git
 cd cv-review
 pip install -e .
 cv-review init
+
+# 验证安装（底层 CLI）
 cv-review --file README.md
+
+# 或在 Claude Code 中直接使用推荐方式：/cv README.md
 ```
 
 ---
 
-## 3. 安装指南
+## 2. 安装指南
 
-### 3.1 环境要求
+### 2.1 环境要求
 
 - Python >= 3.10
 - 推荐使用虚拟环境（conda / venv）
 
-### 3.2 安装包
+### 2.2 安装包
 
 ```bash
 git clone <仓库地址>
@@ -92,23 +94,32 @@ pip install -e .
 
 安装完成后，全局 `cv-review` 命令即加入 PATH，任意目录均可调用。
 
-### 3.3 初始化配置
+### 2.3 初始化配置
 
 ```bash
 cv-review init
 ```
 
-首次运行会在用户家目录生成 `~/.cv-review/`，包含默认的 `api_settings.json` 与 `prompts.txt` 模板。
+首次运行会在用户家目录生成 `~/.cv-review/`，将内置的默认配置模板（`api_settings.json` + `prompts.txt`）复制过去。
 
-> **注意**：`cv-review init` 命令不会覆盖你已存在的配置文件，放心执行。
+> **为什么要放在 `~/.cv-review/` 而不是工程目录？**
+> 
+> API 通道配置（base_url、model_name、api_key_env）属于**个人偏好**，不是工程代码的一部分。类似于 `~/.aws/` 或 `~/.ssh/` 的设计——个人凭证放在家目录，换工程时无需重复配置。工程目录里只需要放 `.env` 文件（已自动被 `.gitignore` 忽略）。
 
-### 3.4 API Key 配置
+> **注意**：`cv-review init` 不会覆盖你已存在的配置文件，放心执行。
 
-本项目**只支持 `.env` 文件方式**配置 API Key，统一、安全、不污染代码仓库。
+### 2.4 API Key 配置
 
-#### 步骤：创建 `.env` 文件
+API Key 配置分为两层，不要混淆：
 
-在项目根目录新建 `.env` 文件：
+| 层级 | 文件 | 位置 | 内容 |
+|------|------|------|------|
+| **第一层（真实密钥）** | `.env` | **项目根目录**（当前工程） | `ANTHROPIC_AUTH_TOKEN=sk-xxx` |
+| **第二层（通道结构）** | `api_settings.json` | `~/.cv-review/`（用户家目录） | 定义 base_url、model_name、`api_key_env` |
+
+**`.env` 存放真实密钥，`api_settings.json` 只存放"哪个环境变量名对应哪个通道"。两者通过 `api_key_env` 字段关联，程序启动时自动从 `.env` 读取并注入。**
+
+#### 步骤 1：在项目根目录创建 `.env`
 
 ```bash
 # Windows
@@ -118,29 +129,39 @@ notepad .env
 touch .env
 ```
 
-写入你的 API Key：
+写入你的 API Key（变量名**必须与默认配置一致**）：
 
 ```text
 ANTHROPIC_AUTH_TOKEN=sk-你的-Kimi-Key
 DEEPSEEK_API_KEY=sk-你的-DeepSeek-Key
 ```
 
-> `.env` 文件已默认加入 `.gitignore`，可放心放在项目目录中，**不会误提交到 Git**。
+> `.env` 已加入 `.gitignore`，**不会误提交到 Git**。
+> 
+> **⚠️ 安全提示**：绝不要将 API Key 明文写入项目源码或提交到 Git。`api_settings.json` 中不支持直接填写 `api_key`，必须通过 `api_key_env` 指定环境变量名。
 
-程序启动时会自动读取该文件并加载为环境变量，无需手动 `export`。
+#### 步骤 2：确认变量名对应关系（通常无需操作）
 
-#### 团队 / CI 场景
+若你执行过 `cv-review init`，通道配置在 `~/.cv-review/api_settings.json` 中。默认配置已预填好变量名：
 
-若需在 CI 流水线或无 `.env` 文件的环境中运行，直接在系统环境变量中配置同名变量即可：
+- Kimi 通道 → `api_key_env`: `"ANTHROPIC_AUTH_TOKEN"`
+- DeepSeek 通道 → `api_key_env`: `"DEEPSEEK_API_KEY"`
+
+**只要 `.env` 中的变量名与上述保持一致，即可直接使用。** 若你修改了 `.env` 中的变量名（如改成 `MY_KIMI_KEY`），才需要同步修改 `~/.cv-review/api_settings.json` 中的 `api_key_env`。
+
+#### 步骤 3：验证
 
 ```bash
-export ANTHROPIC_AUTH_TOKEN="sk-xxx"
-export DEEPSEEK_API_KEY="sk-xxx"
+cv-review --file README.md
 ```
 
-> **⚠️ 安全提示**：**绝不要将 API Key 明文写入项目源码或提交到 Git**。`api_settings.json` 中不支持直接填写 `api_key`，必须通过 `api_key_env` 指定环境变量名。
+或直接在 Claude Code 中：
 
-### 3.5 支持的 API 通道
+```
+/cv README.md
+```
+
+### 2.5 支持的 API 通道
 
 默认内置配置支持以下通道（可在 `~/.cv-review/api_settings.json` 中自定义）：
 
@@ -156,7 +177,7 @@ export DEEPSEEK_API_KEY="sk-xxx"
 > pip install cv-review[anthropic]
 > ```
 
-### 3.6 Claude Code CLI 集成（推荐使用）
+### 2.6 Claude Code CLI 集成（推荐使用）
 
 将 `/cv` 系列命令部署到 Claude Code：
 
@@ -177,9 +198,9 @@ cp docs/cv.md docs/cv_help.md docs/cv_debate.md ~/.claude/commands/
 
 ---
 
-## 4. 使用模式大全
+## 3. 使用模式大全
 
-### 4.1 Claude Code 中 `/cv` 的所有用法（推荐日常开发）
+### 3.1 Claude Code 中 `/cv` 的所有用法（推荐日常开发）
 
 `/cv` 是 Claude Code CLI 的**全局 Slash Command**，安装后可在任意工程目录使用。它的核心价值是提供**"评审 → 询问是否修改 → 直接 Edit 改文件"**的交互闭环。
 
@@ -228,7 +249,7 @@ cp docs/cv.md docs/cv_help.md docs/cv_debate.md ~/.claude/commands/
 
 - **不指定文件路径**，直接输入自然语言请求。
 - `/cv` 会自动识别意图，扫描工程中的相关文件（代码、文档或两者），聚合成临时文档后提交交叉验证。
-- 自动排除测试目录、缓存目录和依赖目录，文件扫描数量与聚合大小由系统自动判断，无固定上限。
+- 自动排除缓存目录、依赖目录和版本控制目录，文件扫描范围由系统自动判断，无固定上限。
 - 评审完成后会提示："如需针对单个文件深度审查，请使用 `/cv <文件路径>`。"
 
 #### 模式 E：多轮闭环博弈（深度生成）
@@ -251,83 +272,13 @@ cp docs/cv.md docs/cv_help.md docs/cv_debate.md ~/.claude/commands/
 - 不确定怎么用时，随时输入 `/cv help`。
 - 也可直接输入 `/cv`（无参数），会自动进入帮助模式。
 
-#### 路径兼容性说明
+#### 路径提示
 
-`/cv` 支持所有常见路径格式，底层会自动处理：
-
-| 格式 | 示例路径 | 说明 |
-| :--- | :--- | :--- |
-| 相对路径 | `docs/design.md` | 基于当前工程目录解析 |
-| Windows 正斜杠 | `D:/project/docs/design.md` | ✅ 推荐，避免转义问题 |
-| Windows 反斜杠 | `D:\project\docs\design.md` | ✅ 支持，双引号包裹后安全传递 |
-| Windows 混合斜杠 | `D:/project\docs/design.md` | ✅ 支持，pathlib 自动标准化 |
-| Windows 盘符（大小写不敏感） | `c:/project/docs.md` / `C:\project\docs.md` | ✅ 支持 |
-| Linux / macOS | `/home/user/docs/design.md` | ✅ 原生支持 |
-| 当前目录 | `./config.py` / `.gitignore` | ✅ 支持 |
-| 上级目录 | `../shared/utils.py` | ✅ 支持 |
-
-> 💡 **建议**：Windows 用户优先使用正斜杠 `/`，可减少因 Shell 转义导致的路径解析问题。
-> 如果路径不存在，`/cv` 会明确提示错误原因，并请求重新输入。
+`/cv` 支持相对路径、绝对路径（含 Windows 盘符）、正斜杠与反斜杠混用等所有常见格式，底层 `pathlib` 会自动标准化。Windows 用户建议优先使用正斜杠 `/`，可减少 Shell 转义问题。如果路径不存在，`/cv` 会明确提示并请求重新输入。
 
 ---
 
-### 4.2 `cv-review` CLI 完整参数手册
-
-`cv-review` 是底层引擎，不依赖 Claude Code，任何终端均可调用。
-
-#### 子命令
-
-| 命令 | 说明 |
-| :--- | :--- |
-| `cv-review init` | 初始化用户级配置目录 `~/.cv-review/`，复制默认模板 |
-| `cv-review init --force` | 强制覆盖已有配置文件（慎用） |
-
-#### 主命令参数（评审相关）
-
-| 短参 | 长参 | 默认值 | 说明 |
-| :--- | :--- | :--- | :--- |
-| `-f` | `--file` | （必填） | 待评审或博弈的文档路径 |
-| `-i` | `--instruction` | `None` | 定向评审指令，如 `"重点审查第三章并发模型"` |
-| `-m` | `--mode` | `review` | 验证模式：`review`（轻量验证）或 `debate`（多轮闭环） |
-| `-r` | `--rounds` | `2` | `debate` 模式下的迭代轮数 |
-| `-o` | `--output` | `outputs` | `debate` 模式下输出目录 |
-| | `--output-format` | `markdown` | 输出格式：`markdown`（默认）或 `json` |
-| `-v` | `--verbose` | `False` | 启用 DEBUG 级别日志，查看完整 API 调用过程 |
-| `-h` | `--help` | — | 显示帮助信息并退出 |
-
-#### 常用组合示例
-
-```bash
-# 1. 最简用法：轻量验证
-cv-review --file docs/design.md
-
-# 2. 定向验证
-cv-review --file docs/design.md \
-  --instruction "请逐条分析第三章中所有并发模型的潜在竞态条件与死锁风险"
-
-# 3. 调试模式：看 API 到底发了什么、收到了什么
-cv-review --file docs/design.md -v
-
-# 4. JSON 输出（适合脚本解析）
-cv-review --file docs/design.md --output-format json
-
-# 5. 多轮博弈：3 轮迭代，输出到 outputs/
-cv-review --file docs/requirement.md --mode debate --rounds 3 --output outputs/
-
-# 6. 多轮博弈 + JSON 输出（适合 CI 流水线）
-cv-review --file docs/requirement.md --mode debate --rounds 2 \
-  --output outputs/ --output-format json
-
-# 7. 查看帮助
-cv-review --help
-
-# 8. 查看详细日志（DEBUG 级别）
-cv-review --file README.md --verbose
-```
-
----
-
-### 4.3 完整多轮闭环博弈详解（`/cv_debate`）
+### 3.2 多轮闭环博弈详解（`/cv_debate`）
 
 这是 `cv-review` 的**高阶模式**，适合"只有原始需求、没有现成文档"的场景。在 Claude Code 中通过 `/cv_debate` 进入**交互式向导**，无需记忆任何 CLI 参数。
 
@@ -421,11 +372,34 @@ Claude：━━━━━━━━━━━━━━━━━━━━━━━�
 
 ---
 
-## 5. 自定义提示词（ prompts.txt ）
+### 3.3 附录：底层 `cv-review` CLI 速查
+
+`cv-review` 是 `/cv` 和 `/cv_debate` 的底层引擎，任何终端均可独立调用。完整参数请运行 `cv-review --help` 查看。
+
+```bash
+# 轻量验证
+cv-review --file docs/design.md
+
+# 定向验证
+cv-review --file docs/design.md --instruction "重点审查并发安全"
+
+# JSON 输出（适合脚本解析）
+cv-review --file docs/design.md --output-format json
+
+# 多轮博弈
+cv-review --file docs/requirement.md --mode debate --rounds 2 --output outputs/
+
+# 调试模式（查看完整 API 调用日志）
+cv-review --file docs/design.md -v
+```
+
+---
+
+## 4. 自定义提示词（ prompts.txt ）
 
 `cv-review` 内置了两组角色提示词（`reviewer_system` 与 `architect_system`），分别用于**交叉验证**与**多轮博弈**场景。如果你希望调整评审风格（例如让 reviewer 更关注安全、让 architect 更关注性能），无需改动源码，直接修改个人配置即可。
 
-### 5.1 配置优先级
+### 4.1 配置优先级
 
 `cv-review` 采用**用户级配置优先**策略：
 
@@ -437,7 +411,7 @@ src/cv_review/config/prompts.txt   ← 包内默认模板
 
 这意味着每个人的提示词修改只影响自己，不会污染团队仓库。
 
-### 5.2 初始化个人配置目录
+### 4.2 初始化个人配置目录
 
 首次使用时，在任意终端执行：
 
@@ -453,9 +427,9 @@ cv-review init
 └── prompts.txt          # 个人自定义提示词（从包内默认复制而来）
 ```
 
-> **注意**：`cv-review init` 不会覆盖你已存在的配置文件，放心执行。若需重置，手动删除 `~/.cv-review/` 后重新 init 即可。
+> **注意**：`cv-review init` 不会覆盖你已存在的配置文件。日常修改提示词时，直接编辑 `~/.cv-review/prompts.txt` 即可，**无需重新执行 init**。仅在首次安装或需要重置为默认模板时才执行 init。
 
-### 5.3 修改提示词
+### 4.3 修改提示词
 
 直接用文本编辑器打开个人配置：
 
@@ -489,13 +463,13 @@ nano ~/.cv-review/prompts.txt
 - 段名 `[reviewer_system]` 和 `[architect_system]` 是代码硬编码读取的键，不能改名。
 - 段格式（方括号 + 内容）必须保持，否则解析会失败。
 
-### 5.4 生效方式
+### 4.4 生效方式
 
 **保存后立即生效，无需重启任何服务。**
 
 因为 `cv-review` 每次运行时都会重新从磁盘读取 `prompts.txt`（无缓存层、无守护进程）。修改保存后，下一次运行 `/cv` 或 `cv-review` 就直接使用新提示词。
 
-### 5.5 多人协作的最佳实践
+### 4.5 多人协作的最佳实践
 
 | 场景 | 推荐做法 |
 | :--- | :--- |
@@ -503,7 +477,7 @@ nano ~/.cv-review/prompts.txt
 | **团队统一标准** | 将优化后的 `prompts.txt` 放到仓库 `docs/templates/cv-review-prompts.txt`，新成员复制到个人目录 |
 | **CI / 自动化流水线** | 在流水线镜像中预置 `~/.cv-review/` 或使用 `--config-dir` 参数（未来可扩展） |
 
-### 5.6 两组提示词的区别：`reviewer_system` vs `architect_system`
+### 4.6 两组提示词的区别：`reviewer_system` vs `architect_system`
 
 你可能会有疑问："不就是一个单纯的第三方 API 独立审阅吗，为啥有两组提示词？"
 
@@ -530,7 +504,7 @@ nano ~/.cv-review/prompts.txt
 
 ---
 
-## 6. 目录结构
+## 5. 目录结构
 
 ```text
 cross-validation/               # 本仓库根目录（git clone 后的本地目录）
@@ -559,9 +533,9 @@ cross-validation/               # 本仓库根目录（git clone 后的本地目
 
 ---
 
-## 7. 架构与调用流程
+## 6. 架构与调用流程
 
-### 7.1 轻量验证模式
+### 6.1 轻量验证模式
 
 ```
 用户输入
@@ -583,7 +557,7 @@ cv-review --file <path> [--instruction "xxx"]
           返回 Markdown 评审意见到 stdout
 ```
 
-### 7.2 完整多轮闭环模式
+### 6.2 完整多轮闭环模式
 
 ```
 用户输入
@@ -603,7 +577,7 @@ cv-review --file <path> --mode debate --rounds N
   └─→ 输出最终文档到 outputs/DESIGN_DOCUMENT.md
 ```
 
-### 7.3 `/cv` Slash Command 调用链
+### 6.3 `/cv` Slash Command 调用链
 
 ```
 Claude Code CLI
@@ -619,21 +593,21 @@ Claude Code CLI
 
 ---
 
-## 8. 关键设计决策
+## 7. 关键设计决策
 
-### 8.1 为什么使用独立进程 + 独立模型？
+### 7.1 为什么使用独立进程 + 独立模型？
 
 - **完全隔离**：`cv-review` 运行在独立 Python 进程中，每次请求只传递 system prompt + 当前文档，不携带 Claude Code 会话的任何历史上下文。
 - **客观独立**：Reviewer 完全不知道作者是谁、也不知道当前对话的主题，只能基于文档本身进行批判。
 - **成本可控**：轻量模式只调用一次 reviewer，响应快、Token 消耗最低。
 
-### 8.2 为什么配置放在 `~/.cv-review/`？
+### 7.2 为什么配置放在 `~/.cv-review/`？
 
 - **多开发者推广**：每个开发者只需配置一次自己的 API Key，不受源码仓库路径限制。
 - **版本隔离**：通过 `pip install --upgrade` 升级包时，不会覆盖 `~/.cv-review/` 中的个人配置。
 - **跨平台**：Windows / macOS / Linux 均通过 `Path.home()` 自动定位。
 
-### 8.3 为什么使用标准 Python 包而非脚本？
+### 7.3 为什么使用标准 Python 包而非脚本？
 
 - `pip install -e .` 即可全局使用 `cv-review` 命令。
 - 内置默认模板随包分发，`cv-review init` 后立即可用。
@@ -641,56 +615,3 @@ Claude Code CLI
 
 ---
 
-## 9. 变更记录
-
-### 2026-05-30 v0.3.0 智能意图模式与架构升级
-
-- **新增智能意图模式**：`/cv <自然语言请求>` 支持省略文件路径，系统自动扫描工程文件、聚合内容后提交交叉验证。
-- **底层 SDK 支持 Anthropic 格式**：解决 Kimi API（`https://api.kimi.com/coding/`）404 问题，实现 OpenAI / Anthropic 双 SDK 兼容。
-- **策略模式重构**：`api.py` 引入 `ApiClientAdapter` 抽象基类 + `OpenAIAdapter` + `AnthropicAdapter`，屏蔽 SDK 差异，扩展性大幅提升。
-- **重试粒度修复**：`@retry` 仅捕获网络瞬时错误（`RetryableError`），`ValueError` / `RuntimeError` 等业务异常直接抛出，避免无意义重试。
-- **边界条件全面加固**：
-  - 二进制文件拦截（`.png`、`.zip` 等 20+ 种扩展名）
-  - 文件大小限制（1 MB）与内容长度截断（300K 字符）
-  - `config.py` 增加 `api_format` 合法性校验与空 section 跳过
-  - `cli.py` Windows 编码处理线程安全（`reconfigure` 优先）
-- **路径判断鲁棒性增强**：支持混合斜杠、盘符大小写不敏感、`.` / `..` 目录，路径特征规则覆盖 28 种扩展名。
-- **README 同步更新**：使用模式新增模式 D（智能意图）、API 通道表格增加 `api_format`、架构图更新为双格式支持。
-
-### 2026-05-29 v0.2.4 命令命名标准化
-
-- **统一连字符命名**：将命令文件名统一为标准 CLI 风格，`cvdebate.md` → `cv_debate.md`，并新增 `cv_help.md`，菜单中显示为 `/cv_debate`、`/cv_help`。
-- **移除带空格文件名**：删除 `cv help.md`，避免 Claude Code CLI 解析歧义。
-- **参数用法与独立命令并存**：保留 `/cv help`、`/cv debate` 参数用法，同时提供 `/cv_help`、`/cv_debate` 独立快捷命令，兼顾习惯与菜单可见性。
-- **README 同步更新**：安装说明、使用模式、目录结构与变更记录全面刷新。
-
-### 2026-05-29 v0.2.3 命令菜单优化与帮助格式升级
-
-- **拆分 Slash Command**：新增 `docs/cv help.md`（`/cv help`）与 `docs/cvdebate.md`（`/cvdebate`），解决初次使用者无法在菜单中发现 help 与 debate 入口的问题。
-- **帮助格式 Markdown 化**：`/cv help` 的输出从 ASCII 框线风格全面升级为标准 Markdown 格式（含标题、表格、列表、代码块）。
-- **空参数默认进帮助**：`/cv` 无参数时默认展示帮助信息，降低新用户上手门槛。
-- **README 同步更新**：安装说明、使用模式大全、目录结构均更新以反映多命令体系。
-
-### 2026-05-29 v0.2.2 /cv 交互式向导重构
-
-- **重写 `/cv` Slash Command**：`docs/cv.md` 全面重构，支持三种模式：
-  - **帮助模式**：`/cv help` 展示完整用法、路径格式说明与前置配置清单。
-  - **轻量验证模式**（默认）：`/cv <文件> [定向指令]`，增加路径不存在时的友好错误提示与跨平台路径兼容性处理。
-  - **Debate 交互向导模式**：`/cv debate [<文件>]`，进入交互式问答流程，依次询问轮数、输出目录、定向关注点，无需记忆任何 CLI 参数。
-- **路径兼容性**：明确支持 Windows（`/`、`\`、绝对路径含盘符）、Linux、macOS 及相对路径；路径验证失败时向用户报告具体原因并请求重新输入。
-- **README 同步更新**：第 4 章使用模式新增"模式 E：查看帮助"与"路径兼容性说明"表格；第 4.3 节 debate 详解补充交互流程示例。
-
-### 2026-05-29 v0.2.0 推广级重构
-
-- **架构升级**：从手动运行 `python run_debate.py` 升级为全局 CLI 命令 `cv-review`。
-- **包化重构**：工程重构为标准 Python 包（`pyproject.toml` + `src/cv_review/`）。
-- **配置解耦**：支持用户级 `~/.cv-review/` 与内置默认模板的层级覆盖。
-- **定向验证**：新增 `--instruction` 参数，支持聚焦特定章节的精准验证。
-- **Claude Code 集成**：新增全局 `/cv` Slash Command，任意目录可用。
-- **旧体系清理**：彻底卸载 CVDebate MCP Server 及 `/algo-*` 命令。
-- **单元测试**：新增 `tests/test_config.py`，覆盖配置加载与路径优先级。
-- **Windows 编码修复**：解决终端中文乱码问题。
-
-### 早期版本
-
-- v0.1.0：初代多智能体博弈框架（`run_debate.py`），由 GEMINI 编写。

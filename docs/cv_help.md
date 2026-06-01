@@ -91,4 +91,4 @@ ANTHROPIC_AUTH_TOKEN=sk-你的-Kimi-Key
 DEEPSEEK_API_KEY=sk-你的-DeepSeek-Key
 ```
 
-路径提示：Windows 建议用正斜杠 `/`。
+路径提示：Windows 用户建议优先使用正斜杠 `/`（Linux / macOS 用户无需担心，正斜杠本就是默认格式）。
