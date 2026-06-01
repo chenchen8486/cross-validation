@@ -161,10 +161,6 @@ ANTHROPIC_AUTH_TOKEN=sk-你的-Kimi-Key
 DEEPSEEK_API_KEY=sk-你的-DeepSeek-Key
 ```
 
-> `.env` 已加入 `.gitignore`，**不会误提交到 Git**。
-> 
-> **⚠️ 安全提示**：绝不要将 API Key 明文写入项目源码或提交到 Git。`api_settings.json` 中不支持直接填写 `api_key`，必须通过 `api_key_env` 指定环境变量名。
-
 #### 步骤 2：确认变量名对应关系（通常无需操作）
 
 若你执行过 `cv-review init`，通道配置在 `~/.cv-review/api_settings.json` 中。默认配置已预填好变量名：
@@ -206,15 +202,11 @@ cv-review --file README.md
 
 本节是对第 1 节中 `cv-review setup-claude` 与 `cv-review doctor` 的详细展开。
 
-#### 一键部署（推荐）
-
 ```bash
 cv-review setup-claude
 ```
 
-该命令会自动将 `docs/cv*.md` 复制到 `~/.claude/commands/`，无需手动操作。
-
-#### 手动部署（备用）
+该命令会自动将 `docs/cv*.md` 复制到 `~/.claude/commands/`。
 
 若一键部署失败，可手动复制：
 
@@ -325,6 +317,19 @@ cv-review doctor
 - 展示 `/cv` 的完整用法、参数说明、路径格式提示与前置配置检查清单。
 - 不确定怎么用时，随时输入 `/cv help`。
 - 也可直接输入 `/cv`（无参数），会自动进入帮助模式。
+
+#### 模式 G：对话历史盲审（评审 Claude 自己的回复）
+
+```bash
+/cv 你刚才的回复合理吗
+/cv 上面的回答有没有漏洞
+/cv 你之前说的，重点看看并发安全
+```
+
+- 当你想对 Claude **在当前会话中刚刚生成的回复**进行独立交叉验证时使用。
+- `/cv` 会自动识别对话历史指代词（如"你刚才"、"上面的回答"），提取最近一次回复内容，交由外部独立模型进行零记忆盲审。
+- 若输入中同时包含文件路径，优先按文件评审处理，避免误判。
+- 如果当前对话中 Claude 尚未生成过回复，或回复过短（少于 50 字符），会明确提示并停止执行。
 
 #### 路径提示
 
