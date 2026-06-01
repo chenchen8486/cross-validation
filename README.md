@@ -63,16 +63,30 @@ AI 信誓旦旦地表示逻辑自洽、考虑周全。你也挑不出毛病。
 
 ## 1. 快速开始
 
+> 以下是最简完整流程。如需了解每一步的原理、可选参数与故障排查，请参阅 [第 2 节 安装指南](#2-安装指南)。
+
 ```bash
 git clone https://github.com/your-org/cv-review.git
 cd cv-review
-pip install -e ".[dev,anthropic]"
-cv-review init                 # 生成 ~/.cv-review/ 配置模板
-cv-review setup-claude         # 一键部署 /cv 系列 Slash Command
-cv-review doctor               # 诊断环境，确认全部就绪
+pip install -e ".[dev,anthropic]"   # 安装 CLI 工具及全部依赖
+cv-review init                      # 生成 ~/.cv-review/ 配置模板
+cv-review setup-claude              # 将 /cv 系列命令部署到 Claude Code
 ```
 
-然后在项目根目录创建 `.env` 并写入你的 API Key（详见 2.4 节），**重启 Claude Code CLI**，即可在任意工程使用：
+然后，在项目根目录创建 `.env` 并写入你的 API Key：
+
+```text
+ANTHROPIC_AUTH_TOKEN=sk-你的-Kimi-Key
+DEEPSEEK_API_KEY=sk-你的-DeepSeek-Key
+```
+
+最后运行诊断，确认全部就绪：
+
+```bash
+cv-review doctor
+```
+
+**完全退出并重新启动 Claude Code CLI**，即可在任意工程使用：
 
 ```bash
 /cv README.md
@@ -81,6 +95,8 @@ cv-review doctor               # 诊断环境，确认全部就绪
 ---
 
 ## 2. 安装指南
+
+> 本节是对第 1 节快速开始中每一步的原理、可选参数与故障排查的详细展开。
 
 ### 2.1 环境要求
 
@@ -92,10 +108,16 @@ cv-review doctor               # 诊断环境，确认全部就绪
 ```bash
 git clone <仓库地址>
 cd cv-review
-pip install -e .
+pip install -e ".[dev,anthropic]"
 ```
 
 安装完成后，全局 `cv-review` 命令即加入 PATH，任意目录均可调用。
+
+> 如果你**不需要 Anthropic 格式支持**（如不使用 Kimi），可以省略可选依赖：
+> ```bash
+> pip install -e ".[dev]"
+> ```
+> 只使用 OpenAI 格式（如 DeepSeek）时，核心依赖 `openai>=1.0` 已包含在默认安装中。
 
 ### 2.3 初始化配置
 
@@ -175,12 +197,14 @@ cv-review --file README.md
 
 如需接入其他模型（OpenAI、Claude、GLM 等），在配置文件 `api_settings.json` 中新增通道时，需指定对应的 `api_format`（`openai` 或 `anthropic`）。
 
-> 如需使用 Anthropic 格式（如 Claude API），请确保已安装 Anthropic 支持：
+> 默认安装已包含 Anthropic 支持（`pip install -e ".[dev,anthropic]"`）。若你使用了精简安装（`pip install -e .`），后续需要 Anthropic 格式时可补装：
 > ```bash
 > pip install cv-review[anthropic]
 > ```
 
 ### 2.6 Claude Code CLI 集成（推荐使用）
+
+本节是对第 1 节中 `cv-review setup-claude` 与 `cv-review doctor` 的详细展开。
 
 #### 一键部署（推荐）
 
