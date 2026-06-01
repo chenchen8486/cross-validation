@@ -86,7 +86,7 @@ DEEPSEEK_API_KEY=sk-你的-DeepSeek-Key
 cv-review doctor
 ```
 
-**完全退出并重新启动 Claude Code CLI**，即可在任意工程使用：
+**完全退出并重新启动 Claude Code CLI**，即可在任意工程中使用 `/cv` 对文档或代码进行评审。例如：
 
 ```bash
 /cv README.md
@@ -176,9 +176,9 @@ DEEPSEEK_API_KEY=sk-你的-DeepSeek-Key
 cv-review --file README.md
 ```
 
-或直接在 Claude Code 中：
+或在 Claude Code 中直接评审该文件：
 
-```
+```bash
 /cv README.md
 ```
 
@@ -308,17 +308,7 @@ cv-review doctor
 - 系统自动调用 `architect + reviewer` 双通道进行多轮博弈，最终输出完整设计文档。
 - 全程只需回答几个问题，无需记忆 CLI 参数。
 
-#### 模式 F：查看帮助
-
-```bash
-/cv help
-```
-
-- 展示 `/cv` 的完整用法、参数说明、路径格式提示与前置配置检查清单。
-- 不确定怎么用时，随时输入 `/cv help`。
-- 也可直接输入 `/cv`（无参数），会自动进入帮助模式。
-
-#### 模式 G：对话历史盲审（评审 Claude 自己的回复）
+#### 模式 F：对话历史盲审（评审 Claude 自己的回复）
 
 ```bash
 /cv 你刚才的回复合理吗
@@ -330,6 +320,16 @@ cv-review doctor
 - `/cv` 会自动识别对话历史指代词（如"你刚才"、"上面的回答"），提取最近一次回复内容，交由外部独立模型进行零记忆盲审。
 - 若输入中同时包含文件路径，优先按文件评审处理，避免误判。
 - 如果当前对话中 Claude 尚未生成过回复，或回复过短（少于 50 字符），会明确提示并停止执行。
+
+#### 模式 G：查看帮助
+
+```bash
+/cv help
+```
+
+- 展示 `/cv` 的完整用法、参数说明、路径格式提示与前置配置检查清单。
+- 不确定怎么用时，随时输入 `/cv help`。
+- 也可直接输入 `/cv`（无参数），会自动进入帮助模式。
 
 #### 路径提示
 
